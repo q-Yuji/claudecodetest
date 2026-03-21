@@ -18,6 +18,10 @@ Three files, each with a distinct responsibility:
 - **`style.css`** — all visual design. Theming is done entirely through CSS custom properties defined in `:root` (colors, sidebar width). The activity bar heights are driven by the `--h` CSS variable set inline on each `.bar` element.
 - **`app.js`** — all interactivity: live clock/greeting (updates every second via `setInterval`), sidebar nav active-state toggling, and task list management (add task, toggle done state).
 
+## Git workflow
+
+Commit work to git regularly throughout a session — after each meaningful change, not just at the end. Push to GitHub (`git push`) so there is always an up-to-date remote backup. Use clean, descriptive commit messages that explain *why* the change was made. A Stop hook in `~/.claude/settings.json` auto-pushes on session end, but don't rely on that alone — commit and push at logical checkpoints.
+
 ## Design conventions
 
 - Dark theme only. Color palette lives in `:root` in `style.css` — always use those variables, never hardcode colors.
