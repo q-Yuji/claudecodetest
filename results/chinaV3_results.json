@@ -1,0 +1,100 @@
+{
+  "NQ": {
+    "starting_balance": 50000.0,
+    "ending_balance": 50410.0,
+    "total_trades": 3,
+    "wins": 1,
+    "losses": 2,
+    "breakevens": 0,
+    "win_rate": 33.3,
+    "avg_rr": 4.75,
+    "profit_factor": 2.0,
+    "net_pnl": 410.0,
+    "max_drawdown": 410.0,
+    "max_drawdown_pct": 0.81,
+    "avg_win_usd": 820.0,
+    "avg_loss_usd": 205.0,
+    "expectancy": 136.67,
+    "prop_phase": "eval",
+    "prop_fail_reason": "",
+    "equity_curve": [
+      {
+        "time": "2026-02-26 09:25:00",
+        "equity": 50820.0,
+        "dd_floor": 48820.0,
+        "trade_id": 1,
+        "outcome": "win",
+        "phase": "eval"
+      },
+      {
+        "time": "2026-03-17 21:45:00",
+        "equity": 50620.0,
+        "dd_floor": 48820.0,
+        "trade_id": 2,
+        "outcome": "loss",
+        "phase": "eval"
+      },
+      {
+        "time": "2026-03-18 19:55:00",
+        "equity": 50410.0,
+        "dd_floor": 48820.0,
+        "trade_id": 3,
+        "outcome": "loss",
+        "phase": "eval"
+      }
+    ],
+    "trades": [
+      {
+        "id": 1,
+        "asset": "NQ",
+        "direction": "short",
+        "entry_time": "2026-02-26 09:20:00",
+        "exit_time": "2026-02-26 09:25:00",
+        "entry_price": 25386.0,
+        "exit_price": 25365.5,
+        "pnl": 820.0,
+        "outcome": "win",
+        "rr": 2.05,
+        "contracts": 2,
+        "div_confirmed": false,
+        "entry_type": "IDM_POI",
+        "high_conviction": false,
+        "stop_pts": 10.0
+      },
+      {
+        "id": 2,
+        "asset": "NQ",
+        "direction": "long",
+        "entry_time": "2026-03-17 21:40:00",
+        "exit_time": "2026-03-17 21:45:00",
+        "entry_price": 25026.75,
+        "exit_price": 25021.75,
+        "pnl": -200.0,
+        "outcome": "loss",
+        "rr": 6.2,
+        "contracts": 2,
+        "div_confirmed": false,
+        "entry_type": "SMT",
+        "high_conviction": false,
+        "stop_pts": 5.0
+      },
+      {
+        "id": 3,
+        "asset": "NQ",
+        "direction": "long",
+        "entry_time": "2026-03-18 19:50:00",
+        "exit_time": "2026-03-18 19:55:00",
+        "entry_price": 24762.5,
+        "exit_price": 24757.25,
+        "pnl": -210.0,
+        "outcome": "loss",
+        "rr": 6.0,
+        "contracts": 2,
+        "div_confirmed": false,
+        "entry_type": "IDM_POI",
+        "high_conviction": false,
+        "stop_pts": 5.25
+      }
+    ]
+  }
+}

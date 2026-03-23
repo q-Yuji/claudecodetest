@@ -18,6 +18,10 @@
         <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
         Analytics
       </a>
+      <a href="#" class="nav-item" data-section="chinaV3">
+        <svg viewBox="0 0 24 24"><polyline points="3 6 7 10 11 6 15 10 21 4"/><line x1="3" y1="19" x2="21" y2="19"/></svg>
+        chinaV3
+      </a>
       <a href="#" class="nav-item" data-section="tasks">
         <svg viewBox="0 0 24 24"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
         Tasks
@@ -118,6 +122,71 @@
     </div>
   </div>
 
+  <!-- chinaV3 Strategy Panel -->
+  <div class="chinav3-panel hidden" id="chinaV3Panel">
+    <div class="stats-grid" id="cv3StatsGrid">
+      <div class="card stat-card">
+        <div class="stat-label">Net P&L</div>
+        <div class="stat-value" id="cv3NetPnl">—</div>
+        <div class="stat-change" id="cv3NetPnlChange"></div>
+      </div>
+      <div class="card stat-card">
+        <div class="stat-label">Win Rate</div>
+        <div class="stat-value" id="cv3WinRate">—</div>
+        <div class="stat-change neutral" id="cv3Trades"></div>
+      </div>
+      <div class="card stat-card">
+        <div class="stat-label">Avg R:R</div>
+        <div class="stat-value" id="cv3AvgRR">—</div>
+        <div class="stat-change neutral">min 2.0 threshold</div>
+      </div>
+      <div class="card stat-card">
+        <div class="stat-label">Max Drawdown</div>
+        <div class="stat-value" id="cv3MaxDD">—</div>
+        <div class="stat-change" id="cv3MaxDDPct"></div>
+      </div>
+    </div>
+
+    <div class="content-grid cv3-grid">
+      <!-- Asset tabs + metrics -->
+      <div class="card">
+        <div class="card-header">
+          <h2>Performance Breakdown</h2>
+          <div class="tab-group">
+            <button class="tab active">NQ Futures</button>
+          </div>
+        </div>
+        <div class="cv3-metrics" id="cv3Metrics"></div>
+      </div>
+
+      <!-- Equity curve -->
+      <div class="card">
+        <div class="card-header"><h2>Equity Curve</h2></div>
+        <canvas id="cv3EquityCanvas" height="180"></canvas>
+      </div>
+    </div>
+
+    <!-- Trade log -->
+    <div class="card">
+      <div class="card-header"><h2>Trade Log</h2></div>
+      <div class="trade-log-wrap">
+        <table class="trade-log" id="cv3TradeLog">
+          <thead>
+            <tr>
+              <th>#</th><th>Asset</th><th>Dir</th><th>Type</th>
+              <th>Entry</th><th>Exit</th>
+              <th>Entry $</th><th>Exit $</th>
+              <th>Cts</th><th>Stop pts</th>
+              <th>R:R</th><th>P&L</th><th>Result</th>
+            </tr>
+          </thead>
+          <tbody id="cv3TradeBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
   <script src="app.js"></script>
+  <script src="chinaV3.js"></script>
 </body>
 </html>
