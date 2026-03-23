@@ -1,31 +1,33 @@
 """
 chinaV3 backtest — NQ only, intraday day-trader approach.
 
-The AMD cycle plays out every day. This backtest reflects that:
+AMD runs at two levels:
+  Session level : Asia accumulates → London open manipulates → NY distributes
+  Intraday      : micro AMD cycle within each session on 5min
 
-  4H / 1H  → overall trend bias (must agree — both bull or both bear)
-  15min     → macro structure context only (not used for signals)
-  5min      → FBOS + RBOS detection (intraday manipulation sweeps)
-  5min      → IDM POI formation + entry execution
-  3min      → SMT detection — stop at far end of 2-candle manipulation range
-  ES 5min   → DIV confirmation filter
+Timeframes:
+  4H    → confirms 1H bias (high conviction only — not required)
+  1H    → primary trend bias for the session
+  5min  → FBOS + RBOS + IDM POI
+  3min  → SMT entries
+  1min  → OTE entry refinement
+  ES    → DIV filter only
 
-Entry logic (IDM POI):
-  1. 4H + 1H bias must agree
-  2. FBOS on 5min → RBOS confirms → IDM POI = FBOS candle body (min 4pts wide)
-  3. Price retests POI → entry at near edge, SL 2 ticks beyond far edge
-  4. TP: nearest swing high/low before FBOS (min 8pts away)
-  5. ES DIV opposing → skip
+Trend filter (relaxed):
+  1H clear bull/bear  → trade allowed; if 4H agrees → high_conviction (3 cts)
+  1H neutral          → no trade
 
-Entry logic (SMT):
-  1. 4H + 1H bias must agree
-  2. Bullish/bearish SMT detected on 3min at swing extreme
-  3. Entry: near end of 2-candle range, SL at far end of range (only if ≤ 10pts)
-  4. TP: nearest swing high/low (min 8pts away)
-  5. ES DIV opposing → skip
+Session trading windows (UTC):
+  London distribution : 08:00–12:00
+  NY distribution     : 14:00–18:00
+  (entries outside these windows skipped — AMD not in distribution phase)
 
-Sizing: 2 contracts standard, 3 on high-conviction (not currently flagged).
-Max stop: 10 NQ points — trade rejected if wider.
+POI expiry (realistic):
+  POI blown only when close > 50% of POI width past the far edge
+  (not a mere 2-tick close — waiting for a real reaction first)
+
+Sizing: 2 contracts standard, 3 on high-conviction (1H + 4H agree).
+Max stop: 10 NQ points.
 
 Prop firm: MyFutureFunded / Topstep $50k eval rules.
   Eval:   profit target $3,000 | daily loss $1,500 | trailing DD $2,000
@@ -179,20 +181,25 @@ def run_backtest() -> dict:
     else:
         print("  3min data : not available — SMT entries skipped")
 
-    # ── trend bias: 4H + 1H must agree ───────────────────────────────────────
+    # ── trend bias: 1H primary, 4H for high-conviction sizing ────────────────
     bias_4h    = get_trend_bias(df_4h)
     bias_1h    = get_trend_bias(df_1h)
     bias_4h_5m = align_trend_to(bias_4h, df_5.index)
     bias_1h_5m = align_trend_to(bias_1h, df_5.index)
 
-    combined_bias = pd.Series(
+    # 1H drives direction; neutral only when 1H is unclear
+    primary_bias = bias_1h_5m   # 1=bull, -1=bear, 0=neutral
+    # high_conviction when 4H and 1H both agree
+    hc_bias = pd.Series(
         np.where((bias_4h_5m == 1)  & (bias_1h_5m == 1),   1,
         np.where((bias_4h_5m == -1) & (bias_1h_5m == -1), -1, 0)),
         index=df_5.index
     )
-    print(f"  Trend — Bull bars: {int((combined_bias==1).sum())}  "
-          f"Bear: {int((combined_bias==-1).sum())}  "
-          f"Neutral: {int((combined_bias==0).sum())}")
+    print(f"  1H bias — Bull: {int((primary_bias==1).sum())}  "
+          f"Bear: {int((primary_bias==-1).sum())}  "
+          f"Neutral: {int((primary_bias==0).sum())}")
+    print(f"  High-conviction (4H+1H) — Bull: {int((hc_bias==1).sum())}  "
+          f"Bear: {int((hc_bias==-1).sum())}")
 
     # ── build IDM POI list ────────────────────────────────────────────────────
     # IDM POI = body of the FBOS candle, valid only after the RBOS confirms.
@@ -247,7 +254,8 @@ def run_backtest() -> dict:
         if engine._open_trade is not None:
             continue
 
-        trend    = combined_bias.get(ts, 0)
+        trend    = primary_bias.get(ts, 0)
+        hc       = hc_bias.get(ts, 0)          # ±1 if 4H+1H agree, else 0
         div_bull = bool(df_5.loc[ts, "div_bullish"])
         div_bear = bool(df_5.loc[ts, "div_bearish"])
 
@@ -257,16 +265,18 @@ def run_backtest() -> dict:
 
             poi_h = poi["poi_high"]
             poi_l = poi["poi_low"]
+            poi_w = poi_h - poi_l   # POI width
 
-            # Expire POI if price closes decisively through it
-            if poi["direction"] == "long"  and candle["close"] < poi_l - 2 * TICK:
+            # Expire POI only when close is >50% of POI width past the far edge
+            # (simulates waiting for a real reaction before calling it blown)
+            if poi["direction"] == "long"  and candle["close"] < poi_l - poi_w * 0.5:
                 poi["active"] = False
                 continue
-            if poi["direction"] == "short" and candle["close"] > poi_h + 2 * TICK:
+            if poi["direction"] == "short" and candle["close"] > poi_h + poi_w * 0.5:
                 poi["active"] = False
                 continue
 
-            # ── Trend filter ──────────────────────────────────────────────────
+            # ── Trend filter (1H primary) ─────────────────────────────────────
             if poi["direction"] == "long"  and trend == -1:
                 continue
             if poi["direction"] == "short" and trend == 1:
@@ -311,25 +321,29 @@ def run_backtest() -> dict:
                          else entry + 3 * (entry - stop)
 
                 # POI blown this candle → instant stop
+                hc_trade = bool(hc != 0 and hc == (1 if poi["direction"] == "long" else -1))
+
                 if candle["close"] < poi_l:
                     t = engine.open_trade(ASSET, "long", entry, stop, target, ts,
                                           div_confirmed=bool(div_bull),
+                                          high_conviction=hc_trade,
                                           entry_type="IDM_POI")
                     if t:
                         engine.close_trade(poi_l - TICK, ts)
                         poi["active"] = False
                         print(f"  [{ts}] LONG  BLOWN  {entry_label}  entry={t.entry_price:.2f}  "
-                              f"exit={poi_l-TICK:.2f}  PnL=${t.pnl:,.0f}")
+                              f"exit={poi_l-TICK:.2f}  PnL=${t.pnl:,.0f}  HC={hc_trade}")
                     break
 
                 t = engine.open_trade(ASSET, "long", entry, stop, target, ts,
                                       div_confirmed=bool(div_bull),
+                                      high_conviction=hc_trade,
                                       entry_type="IDM_POI")
                 if t:
                     poi["active"] = False
                     print(f"  [{ts}] LONG   {entry_label}  entry={t.entry_price:.2f}  "
                           f"sl={stop:.2f}  tp={target:.2f}  "
-                          f"RR={t.rr}  DIV={bool(div_bull)}")
+                          f"RR={t.rr}  HC={hc_trade}  DIV={bool(div_bull)}")
                     break
 
             # ── Short setup ───────────────────────────────────────────────────
@@ -366,25 +380,29 @@ def run_backtest() -> dict:
                 target = float(candidates["low"].iloc[-1]) if not candidates.empty \
                          else entry - 3 * (stop - entry)
 
+                hc_trade = bool(hc != 0 and hc == -1)
+
                 if candle["close"] > poi_h:
                     t = engine.open_trade(ASSET, "short", entry, stop, target, ts,
                                           div_confirmed=bool(div_bear),
+                                          high_conviction=hc_trade,
                                           entry_type="IDM_POI")
                     if t:
                         engine.close_trade(poi_h + TICK, ts)
                         poi["active"] = False
                         print(f"  [{ts}] SHORT BLOWN  {entry_label}  entry={t.entry_price:.2f}  "
-                              f"exit={poi_h+TICK:.2f}  PnL=${t.pnl:,.0f}")
+                              f"exit={poi_h+TICK:.2f}  PnL=${t.pnl:,.0f}  HC={hc_trade}")
                     break
 
                 t = engine.open_trade(ASSET, "short", entry, stop, target, ts,
                                       div_confirmed=bool(div_bear),
+                                      high_conviction=hc_trade,
                                       entry_type="IDM_POI")
                 if t:
                     poi["active"] = False
                     print(f"  [{ts}] SHORT  {entry_label}  entry={t.entry_price:.2f}  "
                           f"sl={stop:.2f}  tp={target:.2f}  "
-                          f"RR={t.rr}  DIV={bool(div_bear)}")
+                          f"RR={t.rr}  HC={hc_trade}  DIV={bool(div_bear)}")
                     break
 
         # ── SMT entries (3min) — only if no trade opened from POI ─────────────
