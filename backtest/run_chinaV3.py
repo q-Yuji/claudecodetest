@@ -59,6 +59,58 @@ def load(asset: str, tf: str) -> pd.DataFrame:
     return df.sort_index()
 
 
+OTE_FIB = 0.62   # enter at 62% into the exhaustion candle's body
+
+
+def _find_ote(bars_1m: pd.DataFrame, direction: str,
+              poi_h: float, poi_l: float) -> float | None:
+    """
+    Scan 1min bars inside the POI zone for an exhaustion candle and return the
+    OTE entry price (62% into the candle body from open).
+
+    Exhaustion candle criteria:
+      - Must touch or overlap the POI zone
+      - Body ≥ 55% of candle range  (impulsive, not doji)
+      - Body > 1.3 × median body of the window  (larger than recent average)
+      - Directional: bullish candle for long setup, bearish for short
+
+    Returns None if no qualifying candle found (caller uses CE instead).
+    """
+    if bars_1m.empty:
+        return None
+
+    bodies = (bars_1m["close"] - bars_1m["open"]).abs()
+    median_body = bodies.median()
+
+    for _, c in bars_1m.iterrows():
+        rng  = c["high"] - c["low"]
+        body = abs(c["close"] - c["open"])
+        if rng == 0 or body == 0:
+            continue
+
+        # Candle must touch or overlap the POI zone
+        if c["high"] < poi_l or c["low"] > poi_h:
+            continue
+
+        # Impulsive body filter
+        if body / rng < 0.55:
+            continue
+        if median_body > 0 and body < 1.3 * median_body:
+            continue
+
+        if direction == "long" and c["close"] > c["open"]:
+            # Bullish exhaustion inside POI — buyers stepping in
+            ote = c["open"] + OTE_FIB * (c["close"] - c["open"])
+            return round(ote, 2)
+
+        if direction == "short" and c["close"] < c["open"]:
+            # Bearish exhaustion inside POI — sellers stepping in
+            ote = c["open"] - OTE_FIB * (c["open"] - c["close"])
+            return round(ote, 2)
+
+    return None
+
+
 def run_backtest() -> dict:
     print(f"\n{'='*58}")
     print(f"  chinaV3 Backtest — {ASSET}  (MyFutureFunded $50k)")
@@ -70,15 +122,21 @@ def run_backtest() -> dict:
     df_5    = load(ASSET,      "5min")
     df_5_es = load(CORR_ASSET, "5min")
 
-    # 3min for SMT entries (may not exist — fallback gracefully)
+    # 3min for SMT entries; 1min for OTE entry refinement (both optional)
     try:
-        df_3    = load(ASSET, "3min")
+        df_3 = load(ASSET, "3min")
     except FileNotFoundError:
-        df_3    = None
+        df_3 = None
+
+    try:
+        df_1 = load(ASSET, "1min")
+    except FileNotFoundError:
+        df_1 = None
 
     print(f"  5min data  : {df_5.index[0].date()}  →  {df_5.index[-1].date()}")
     print(f"  4H bars: {len(df_4h)}  1H bars: {len(df_1h)}  "
-          f"5min bars: {len(df_5)}  3min bars: {len(df_3) if df_3 is not None else 0}")
+          f"5min: {len(df_5)}  3min: {len(df_3) if df_3 is not None else 0}  "
+          f"1min: {len(df_1) if df_1 is not None else 0}")
 
     # ── signal detection on 5min ──────────────────────────────────────────────
     print("  Detecting signals...")
@@ -212,8 +270,30 @@ def run_backtest() -> dict:
                 if div_bear:           # ES DIV bearish = don't go long
                     continue
 
-                entry = poi_h
-                stop  = poi_l - 2 * TICK
+                stop = poi_l - 2 * TICK
+                ce   = round((poi_h + poi_l) / 2, 2)   # consequent encroachment
+
+                # OTE from 1min exhaustion candle (if data available for this window)
+                ote = None
+                if df_1 is not None:
+                    win_start = ts - pd.Timedelta("4min")
+                    bars_1m   = df_1.loc[win_start:ts] if win_start in df_1.index or ts in df_1.index else pd.DataFrame()
+                    try:
+                        bars_1m = df_1.loc[win_start:ts]
+                    except KeyError:
+                        bars_1m = pd.DataFrame()
+                    ote = _find_ote(bars_1m, "long", poi_h, poi_l)
+
+                # Priority: OTE > CE; OTE must be above stop, CE must be above stop
+                if ote is not None and ote > stop:
+                    entry       = ote
+                    entry_label = f"OTE={ote:.2f}"
+                elif ce > stop:
+                    entry       = ce
+                    entry_label = "CE"
+                else:
+                    entry       = poi_h
+                    entry_label = "POI_EDGE"
 
                 # TP = nearest swing HIGH above entry before the FBOS
                 candidates = sh_5.loc[sh_5.index < poi["formed"]]
@@ -229,7 +309,7 @@ def run_backtest() -> dict:
                     if t:
                         engine.close_trade(poi_l - TICK, ts)
                         poi["active"] = False
-                        print(f"  [{ts}] LONG  BLOWN  entry={t.entry_price:.2f}  "
+                        print(f"  [{ts}] LONG  BLOWN  {entry_label}  entry={t.entry_price:.2f}  "
                               f"exit={poi_l-TICK:.2f}  PnL=${t.pnl:,.0f}")
                     break
 
@@ -238,7 +318,7 @@ def run_backtest() -> dict:
                                       entry_type="IDM_POI")
                 if t:
                     poi["active"] = False
-                    print(f"  [{ts}] LONG   entry={t.entry_price:.2f}  "
+                    print(f"  [{ts}] LONG   {entry_label}  entry={t.entry_price:.2f}  "
                           f"sl={stop:.2f}  tp={target:.2f}  "
                           f"RR={t.rr}  DIV={bool(div_bull)}")
                     break
@@ -250,8 +330,27 @@ def run_backtest() -> dict:
                 if div_bull:           # ES DIV bullish = don't go short
                     continue
 
-                entry = poi_l
-                stop  = poi_h + 2 * TICK
+                stop = poi_h + 2 * TICK
+                ce   = round((poi_h + poi_l) / 2, 2)
+
+                ote = None
+                if df_1 is not None:
+                    win_start = ts - pd.Timedelta("4min")
+                    try:
+                        bars_1m = df_1.loc[win_start:ts]
+                    except KeyError:
+                        bars_1m = pd.DataFrame()
+                    ote = _find_ote(bars_1m, "short", poi_h, poi_l)
+
+                if ote is not None and ote < stop:
+                    entry       = ote
+                    entry_label = f"OTE={ote:.2f}"
+                elif ce < stop:
+                    entry       = ce
+                    entry_label = "CE"
+                else:
+                    entry       = poi_l
+                    entry_label = "POI_EDGE"
 
                 candidates = sl_5.loc[sl_5.index < poi["formed"]]
                 candidates = candidates[candidates["low"] < entry - 8]
@@ -265,7 +364,7 @@ def run_backtest() -> dict:
                     if t:
                         engine.close_trade(poi_h + TICK, ts)
                         poi["active"] = False
-                        print(f"  [{ts}] SHORT BLOWN  entry={t.entry_price:.2f}  "
+                        print(f"  [{ts}] SHORT BLOWN  {entry_label}  entry={t.entry_price:.2f}  "
                               f"exit={poi_h+TICK:.2f}  PnL=${t.pnl:,.0f}")
                     break
 
@@ -274,7 +373,7 @@ def run_backtest() -> dict:
                                       entry_type="IDM_POI")
                 if t:
                     poi["active"] = False
-                    print(f"  [{ts}] SHORT  entry={t.entry_price:.2f}  "
+                    print(f"  [{ts}] SHORT  {entry_label}  entry={t.entry_price:.2f}  "
                           f"sl={stop:.2f}  tp={target:.2f}  "
                           f"RR={t.rr}  DIV={bool(div_bear)}")
                     break
