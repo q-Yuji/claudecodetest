@@ -82,6 +82,9 @@ class BacktestResult:
     avg_win_usd:      float = 0.0
     avg_loss_usd:     float = 0.0
     expectancy:       float = 0.0
+    sharpe_ratio:     float = 0.0   # annualised, daily P&L basis
+    sortino_ratio:    float = 0.0   # annualised, downside deviation only
+    calmar_ratio:     float = 0.0   # annualised return / max drawdown
 
     def summarise(self):
         closed = [t for t in self.trades if t.pnl is not None]
@@ -113,6 +116,36 @@ class BacktestResult:
             self.max_drawdown     = float(abs(dd.min()))
             self.max_drawdown_pct = float(abs((dd / peak).min()) * 100)
 
+        # ── risk-adjusted metrics ─────────────────────────────────────────────
+        if closed:
+            # Group P&L by trading day
+            daily: dict[date, float] = {}
+            for t in closed:
+                d = t.exit_time.date()
+                daily[d] = daily.get(d, 0.0) + t.pnl
+
+            daily_pnl = pd.Series(list(daily.values()))
+            mean_d    = daily_pnl.mean()
+            std_d     = daily_pnl.std()
+            neg_d     = daily_pnl[daily_pnl < 0]
+
+            TRADING_DAYS = 252.0
+
+            # Sharpe — annualised (risk-free rate ≈ 0 for futures)
+            if std_d and std_d > 0:
+                self.sharpe_ratio = round(float((mean_d / std_d) * np.sqrt(TRADING_DAYS)), 2)
+
+            # Sortino — uses downside deviation only
+            down_std = neg_d.std() if len(neg_d) > 1 else std_d
+            if down_std and down_std > 0:
+                self.sortino_ratio = round(float((mean_d / down_std) * np.sqrt(TRADING_DAYS)), 2)
+
+            # Calmar — annualised return / max drawdown
+            if self.max_drawdown > 0:
+                trading_days_in_sample = len(daily)
+                annualised_return = self.net_pnl * (TRADING_DAYS / max(trading_days_in_sample, 1))
+                self.calmar_ratio = round(float(annualised_return / self.max_drawdown), 2)
+
         return self
 
     def to_dict(self) -> dict:
@@ -133,6 +166,9 @@ class BacktestResult:
             "avg_win_usd":      round(self.avg_win_usd, 2),
             "avg_loss_usd":     round(self.avg_loss_usd, 2),
             "expectancy":       round(self.expectancy, 2),
+            "sharpe_ratio":     self.sharpe_ratio,
+            "sortino_ratio":    self.sortino_ratio,
+            "calmar_ratio":     self.calmar_ratio,
             "prop_phase":       self.prop_status.phase,
             "prop_fail_reason": self.prop_status.fail_reason,
             "equity_curve":     self.equity_curve,

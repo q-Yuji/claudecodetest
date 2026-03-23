@@ -15,6 +15,9 @@
     "avg_win_usd": 1000.0,
     "avg_loss_usd": 271.6,
     "expectancy": 46.3,
+    "sharpe_ratio": 1.15,
+    "sortino_ratio": 8.7,
+    "calmar_ratio": 14.32,
     "prop_phase": "eval",
     "prop_fail_reason": "",
     "equity_curve": [

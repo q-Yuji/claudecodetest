@@ -69,6 +69,9 @@
       ["Trailing DD Limit","$2,000", "neu"],
       ["Eval Target",      "$3,000", "neu"],
       ["Expectancy/trade", fmt$(d.expectancy), d.expectancy >= 0 ? "pos" : "neg"],
+      ["Sharpe Ratio",     d.sharpe_ratio  != null ? d.sharpe_ratio  : "—", d.sharpe_ratio  >= 1 ? "pos" : d.sharpe_ratio  >= 0 ? "neu" : "neg"],
+      ["Sortino Ratio",    d.sortino_ratio != null ? d.sortino_ratio : "—", d.sortino_ratio >= 1 ? "pos" : d.sortino_ratio >= 0 ? "neu" : "neg"],
+      ["Calmar Ratio",     d.calmar_ratio  != null ? d.calmar_ratio  : "—", d.calmar_ratio  >= 1 ? "pos" : d.calmar_ratio  >= 0 ? "neu" : "neg"],
     ];
 
     document.getElementById("cv3Metrics").innerHTML = rows.map(([label, val, cls]) => `
