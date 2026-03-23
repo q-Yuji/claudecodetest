@@ -54,8 +54,17 @@ MIN_POI_W  = 4.0   # minimum 4 NQ points (intraday POIs are tighter than swing P
 
 
 def load(asset: str, tf: str) -> pd.DataFrame:
-    df = pd.read_csv(DATA_DIR / asset / f"{tf}.csv",
-                     index_col="datetime", parse_dates=True)
+    path = DATA_DIR / asset / f"{tf}.csv"
+    df = pd.read_csv(path, parse_dates=True)
+
+    # Handle TradingView manual export format (time column) vs fetched format (datetime index)
+    if "time" in df.columns:
+        df = df.rename(columns={"time": "datetime"})
+    if "datetime" in df.columns:
+        df = df.set_index("datetime")
+    df.index = pd.to_datetime(df.index)
+    df.columns = [c.lower() for c in df.columns]
+    df = df[["open", "high", "low", "close", "volume"]]
     return df.sort_index()
 
 
