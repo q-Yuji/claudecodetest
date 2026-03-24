@@ -128,11 +128,12 @@ def run_backtest() -> dict:
     df_5    = load(ASSET,      "5min")
     df_5_es = load(CORR_ASSET, "5min")
 
-    # 3min for SMT entries; 1min for OTE entry refinement (both optional)
-    try:
-        df_3 = load(ASSET, "3min")
-    except FileNotFoundError:
-        df_3 = None
+    # 3min: resample from 5min for full 60-day coverage
+    # (yfinance 1min only gives 7 days; resampling 5min → 3min gives 60 days of SMT data)
+    df_3 = df_5.resample("3min").agg({
+        "open": "first", "high": "max", "low": "min",
+        "close": "last",  "volume": "sum"
+    }).dropna()
 
     try:
         df_1 = load(ASSET, "1min")
@@ -141,7 +142,7 @@ def run_backtest() -> dict:
 
     print(f"  5min data  : {df_5.index[0].date()}  →  {df_5.index[-1].date()}")
     print(f"  4H bars: {len(df_4h)}  1H bars: {len(df_1h)}  "
-          f"5min: {len(df_5)}  3min: {len(df_3) if df_3 is not None else 0}  "
+          f"5min: {len(df_5)}  3min: {len(df_3)}  "
           f"1min: {len(df_1) if df_1 is not None else 0}")
 
     # ── AMD context on 15min ─────────────────────────────────────────────────
@@ -238,10 +239,18 @@ def run_backtest() -> dict:
     engine = PropFirmEngine()
     print(f"\n  Running simulation...\n")
 
+    _prev_date: date | None = None
+
     for ts, candle in df_5.iterrows():
 
         if not engine.active:
             break
+
+        # ── EOD update: call end_of_day when the date rolls over ─────────────
+        today = ts.date()
+        if _prev_date is not None and today != _prev_date:
+            engine.end_of_day(_prev_date)
+        _prev_date = today
 
         engine.check_exit(candle, ts)
 
@@ -363,10 +372,12 @@ def run_backtest() -> dict:
                           f"w={rng_w:.1f}pts  HC={hc_trade}")
                     break
 
-    # Close any open trade at end of data
+    # Close any open trade and run final EOD at end of data
     if engine._open_trade is not None:
         last = df_5.iloc[-1]
         engine.close_trade(float(last["close"]), df_5.index[-1])
+    if _prev_date is not None:
+        engine.end_of_day(_prev_date)
 
     # ── results ───────────────────────────────────────────────────────────────
     r = engine.result.summarise().to_dict()
@@ -385,6 +396,9 @@ def run_backtest() -> dict:
     print(f"  Net P&L   : ${r['net_pnl']:,.2f}")
     print(f"  Max DD    : ${r['max_drawdown']:,.2f}  ({r['max_drawdown_pct']}%)")
     print(f"  Balance   : ${r['ending_balance']:,.2f}  (started $50,000)")
+    print(f"  Winning days (funded): {r.get('winning_days', 0)} / 5 needed")
+    if r.get('payout_eligible'):
+        print(f"  *** PAYOUT: ${r['payout_amount']:,.2f} (50% of balance) ***")
     print(f"{'─'*58}\n")
 
     return r

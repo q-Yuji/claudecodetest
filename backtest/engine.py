@@ -1,15 +1,19 @@
 """
-Prop-firm backtesting engine — MyFutureFunded / Topstep $50k rules.
+Prop-firm backtesting engine — MyFutureFunded $50k rules.
 
 Eval stage:
-  - Profit target:       $3,000  (pass eval at this point)
-  - Max daily loss:      $1,500  (breach = fail day; account locked for session)
-  - Max trailing DD:     $2,000  (trails from highest equity ever reached)
-  - Position limit:      10 contracts NQ
+  - Profit target:       $3,000  (pass eval → funded)
+  - Max daily loss:      $1,500  (breach = day locked)
+  - Trailing DD:         $2,000  END-OF-DAY trailing from highest EOD equity
+                                 (intraday equity does NOT move the floor)
 
-Funded stage (simulated after eval pass):
+Funded stage (after eval pass):
   - Max daily loss:      $1,500
-  - Trailing drawdown:   $2,000  (stops trailing once floor hits starting balance)
+  - Trailing DD:         $2,000  EOD trailing
+  - Floor lock:          once funded profit ≥ $2,000, floor locks at START_BAL
+                         (trailing stops moving; you can't lose your starting balance)
+  - Payout:              need 5 winning days (each ≥ $150 profit)
+                         withdraw 50% of final balance
 
 NQ specifics:
   - 1 point = $20
@@ -43,7 +47,7 @@ class Trade:
     reward_usd: float
     rr: float
     div_confirmed:   bool = False
-    entry_type:      str  = "IDM_POI"   # "IDM_POI" or "SMT"
+    entry_type:      str  = "SMT"
     high_conviction: bool = False
     stop_pts:        float = 0.0
 
@@ -82,9 +86,14 @@ class BacktestResult:
     avg_win_usd:      float = 0.0
     avg_loss_usd:     float = 0.0
     expectancy:       float = 0.0
-    sharpe_ratio:     float = 0.0   # annualised, daily P&L basis
-    sortino_ratio:    float = 0.0   # annualised, downside deviation only
-    calmar_ratio:     float = 0.0   # annualised return / max drawdown
+    sharpe_ratio:     float = 0.0
+    sortino_ratio:    float = 0.0
+    calmar_ratio:     float = 0.0
+
+    # payout tracking
+    winning_days:     int   = 0
+    payout_eligible:  bool  = False
+    payout_amount:    float = 0.0
 
     def summarise(self):
         closed = [t for t in self.trades if t.pnl is not None]
@@ -118,7 +127,6 @@ class BacktestResult:
 
         # ── risk-adjusted metrics ─────────────────────────────────────────────
         if closed:
-            # Group P&L by trading day
             daily: dict[date, float] = {}
             for t in closed:
                 d = t.exit_time.date()
@@ -131,16 +139,13 @@ class BacktestResult:
 
             TRADING_DAYS = 252.0
 
-            # Sharpe — annualised (risk-free rate ≈ 0 for futures)
             if std_d and std_d > 0:
                 self.sharpe_ratio = round(float((mean_d / std_d) * np.sqrt(TRADING_DAYS)), 2)
 
-            # Sortino — uses downside deviation only
             down_std = neg_d.std() if len(neg_d) > 1 else std_d
             if down_std and down_std > 0:
                 self.sortino_ratio = round(float((mean_d / down_std) * np.sqrt(TRADING_DAYS)), 2)
 
-            # Calmar — annualised return / max drawdown
             if self.max_drawdown > 0:
                 trading_days_in_sample = len(daily)
                 annualised_return = self.net_pnl * (TRADING_DAYS / max(trading_days_in_sample, 1))
@@ -171,24 +176,27 @@ class BacktestResult:
             "calmar_ratio":     self.calmar_ratio,
             "prop_phase":       self.prop_status.phase,
             "prop_fail_reason": self.prop_status.fail_reason,
+            "winning_days":     self.winning_days,
+            "payout_eligible":  self.payout_eligible,
+            "payout_amount":    round(self.payout_amount, 2),
             "equity_curve":     self.equity_curve,
             "trades": [
                 {
-                    "id":             t.id,
-                    "asset":          t.asset,
-                    "direction":      t.direction,
-                    "entry_time":     str(t.entry_time),
-                    "exit_time":      str(t.exit_time),
-                    "entry_price":    t.entry_price,
-                    "exit_price":     t.exit_price,
-                    "pnl":            round(t.pnl, 2),
-                    "outcome":        t.outcome,
-                    "rr":             round(t.rr, 2),
-                    "contracts":      t.contracts,
-                    "div_confirmed":  t.div_confirmed,
-                    "entry_type":     t.entry_type,
+                    "id":              t.id,
+                    "asset":           t.asset,
+                    "direction":       t.direction,
+                    "entry_time":      str(t.entry_time),
+                    "exit_time":       str(t.exit_time),
+                    "entry_price":     t.entry_price,
+                    "exit_price":      t.exit_price,
+                    "pnl":             round(t.pnl, 2),
+                    "outcome":         t.outcome,
+                    "rr":              round(t.rr, 2),
+                    "contracts":       t.contracts,
+                    "div_confirmed":   t.div_confirmed,
+                    "entry_type":      t.entry_type,
                     "high_conviction": t.high_conviction,
-                    "stop_pts":       round(t.stop_pts, 2),
+                    "stop_pts":        round(t.stop_pts, 2),
                 }
                 for t in self.trades if t.pnl is not None
             ],
@@ -197,53 +205,104 @@ class BacktestResult:
 
 class PropFirmEngine:
     """
-    MyFutureFunded / Topstep $50k rules.
+    MyFutureFunded $50k rules — correctly simulated.
 
-    Eval rules:
-      - Profit target $3,000  → phase switches to "funded"
-      - Max daily loss $1,500 → session locked for that day
-      - Trailing drawdown $2,000 from equity peak → account failed
-    Funded rules (after eval pass):
+    KEY: Trailing DD is END-OF-DAY only.
+      - The floor only moves up after market close each day.
+      - Intraday losses are checked against the current floor, but
+        a winning trade intraday does NOT raise the floor until EOD.
+      - Call end_of_day(today) at the close of each trading session.
+
+    Eval:
+      - Profit target $3,000 → phase switches to "funded"
+      - Max daily loss $1,500 → day locked
+      - Trailing DD $2,000 (EOD) → account failed if balance ≤ floor
+
+    Funded:
       - Max daily loss $1,500
-      - Trailing drawdown $2,000, but floor stops at starting balance
+      - Trailing DD $2,000 (EOD), floor ≥ START_BAL always
+      - Once funded profit ≥ $2,000 → floor LOCKS at START_BAL (stops trailing)
+      - Payout: 5 winning days (each ≥ $150) → eligible to withdraw 50% of balance
     """
 
-    START_BAL         = 50_000.0
-    EVAL_TARGET       = 3_000.0
-    MAX_DAILY_LOSS    = 1_500.0
-    TRAILING_DD       = 2_000.0
-    DEFAULT_CONTRACTS = 2         # standard position size
-    MAX_CONTRACTS     = 3         # high-conviction only
-    MAX_STOP_PTS      = 10.0      # never risk more than 10 NQ points on a stop
+    START_BAL           = 50_000.0
+    EVAL_TARGET         = 3_000.0
+    MAX_DAILY_LOSS      = 1_500.0
+    TRAILING_DD         = 2_000.0
+    FUNDED_FLOOR_LOCK   = 2_000.0   # profit needed to lock floor at START_BAL
+    MIN_WINNING_DAY     = 150.0     # $150 min for a winning day (payout)
+    PAYOUT_WINNING_DAYS = 5         # 5 qualifying days needed
+    PAYOUT_PCT          = 0.50      # withdraw 50% of balance
+
+    DEFAULT_CONTRACTS = 2
+    MAX_CONTRACTS     = 3
+    MAX_STOP_PTS      = 10.0
     MIN_RR            = 2.0
-    MAX_RR            = 50.0     # distribution legs can be 10-30R+ at CE entries
+    MAX_RR            = 50.0
 
     def __init__(self):
-        self.balance       = self.START_BAL
-        self.equity_peak   = self.START_BAL
-        self.dd_floor      = self.START_BAL - self.TRAILING_DD   # = $48,000
-        self.result        = BacktestResult(starting_balance=self.START_BAL)
-        self._trade_id     = 0
-        self._daily_pnl: dict[date, float] = {}
-        self._day_locked:  set[date]       = set()
-        self._open_trade: Trade | None     = None
-        self._phase        = "eval"        # "eval" | "funded" | "failed"
+        self.balance        = self.START_BAL
+        self.equity_peak    = self.START_BAL   # highest EOD equity seen
+        self.dd_floor       = self.START_BAL - self.TRAILING_DD   # $48,000
+        self._floor_locked  = False            # True once funded profit ≥ $2k
+        self.result         = BacktestResult(starting_balance=self.START_BAL)
+        self._trade_id      = 0
+        self._daily_pnl:  dict[date, float] = {}
+        self._day_locked: set[date]         = set()
+        self._open_trade: Trade | None      = None
+        self._phase         = "eval"
+        self._last_eod: date | None         = None
+        self._winning_days: set[date]       = set()
+        self._payout_done   = False
 
     @property
     def active(self) -> bool:
         return self._phase in ("eval", "funded")
 
-    # ── drawdown floor (trailing) ─────────────────────────────────────────────
-    def _update_floor(self):
-        """Recalculate the trailing DD floor each time equity changes."""
-        self.equity_peak = max(self.equity_peak, self.balance)
-        new_floor = self.equity_peak - self.TRAILING_DD
+    # ── EOD update — call this once per trading day at session close ──────────
+    def end_of_day(self, today: date):
+        """
+        Update the trailing DD floor based on today's closing equity.
+        Must be called at the end of each session (not after each trade).
+        """
+        if not self.active:
+            return
 
+        # Only move peak at EOD — this is the core rule change
+        if not self._floor_locked:
+            self.equity_peak = max(self.equity_peak, self.balance)
+            new_floor = self.equity_peak - self.TRAILING_DD
+
+            if self._phase == "funded":
+                new_floor = max(new_floor, self.START_BAL)
+
+                # Lock floor once funded profit ≥ $2k
+                if (self.balance - self.START_BAL) >= self.FUNDED_FLOOR_LOCK:
+                    self._floor_locked = True
+                    new_floor = self.START_BAL
+                    print(f"  *** DD FLOOR LOCKED at ${self.START_BAL:,.0f} "
+                          f"(funded profit ≥ ${self.FUNDED_FLOOR_LOCK:,.0f}) ***")
+
+            self.dd_floor = new_floor
+
+        # Track winning days for payout (funded phase only)
         if self._phase == "funded":
-            # In funded: floor never goes below starting balance
-            new_floor = max(new_floor, self.START_BAL)
+            day_pnl = self._daily_pnl.get(today, 0.0)
+            if day_pnl >= self.MIN_WINNING_DAY:
+                self._winning_days.add(today)
 
-        self.dd_floor = new_floor
+            if (len(self._winning_days) >= self.PAYOUT_WINNING_DAYS
+                    and not self._payout_done):
+                self._payout_done = True
+                payout = self.balance * self.PAYOUT_PCT
+                self.result.payout_eligible = True
+                self.result.payout_amount   = round(payout, 2)
+                self.result.winning_days    = len(self._winning_days)
+                print(f"  *** PAYOUT ELIGIBLE — {len(self._winning_days)} winning days  "
+                      f"Withdraw 50% = ${payout:,.2f} ***")
+
+        self.result.winning_days = len(self._winning_days)
+        self._last_eod = today
 
     # ── daily loss check ──────────────────────────────────────────────────────
     def _daily_ok(self, today: date) -> bool:
@@ -254,24 +313,20 @@ class PropFirmEngine:
     # ── position sizing ───────────────────────────────────────────────────────
     def _size(self, asset: str, entry: float, stop: float,
               high_conviction: bool = False) -> tuple[int, float]:
-        """
-        2 contracts standard, 3 on high conviction.
-        Rejects the trade if the stop is wider than MAX_STOP_PTS.
-        """
         stop_pts = abs(entry - stop)
         if stop_pts == 0 or stop_pts > self.MAX_STOP_PTS:
-            return 0, 0.0          # stop too wide — don't take the trade
-        pv           = POINT_VALUE[asset]
-        contracts    = self.MAX_CONTRACTS if high_conviction else self.DEFAULT_CONTRACTS
-        actual_risk  = contracts * stop_pts * pv
+            return 0, 0.0
+        pv          = POINT_VALUE[asset]
+        contracts   = self.MAX_CONTRACTS if high_conviction else self.DEFAULT_CONTRACTS
+        actual_risk = contracts * stop_pts * pv
         return contracts, actual_risk
 
-    # ── open a trade ─────────────────────────────────────────────────────────
+    # ── open a trade ──────────────────────────────────────────────────────────
     def open_trade(self, asset: str, direction: str, entry: float,
                    stop: float, target: float, entry_time: pd.Timestamp,
                    div_confirmed: bool = False,
                    high_conviction: bool = False,
-                   entry_type: str = "IDM_POI") -> Trade | None:
+                   entry_type: str = "SMT") -> Trade | None:
 
         if not self.active or self._open_trade is not None:
             return None
@@ -280,6 +335,7 @@ class PropFirmEngine:
         if not self._daily_ok(today):
             return None
 
+        # Intraday DD check against current floor (floor set at last EOD)
         if self.balance <= self.dd_floor:
             self._phase = "failed"
             self.result.prop_status.phase = "failed"
@@ -290,7 +346,6 @@ class PropFirmEngine:
         if rr < self.MIN_RR or rr > self.MAX_RR:
             return None
 
-        # Apply slippage on entry
         slip = SLIPPAGE_PTS[asset]
         entry_filled = (entry + slip) if direction == "long" else (entry - slip)
 
@@ -342,16 +397,16 @@ class PropFirmEngine:
         t.outcome    = "win" if pnl > 50 else ("loss" if pnl < -50 else "be")
 
         self.balance += pnl
-        self._update_floor()
+        # NOTE: floor does NOT update here — only at end_of_day()
 
         today = exit_time.date()
         self._daily_pnl[today] = self._daily_pnl.get(today, 0.0) + pnl
 
-        # Lock day if daily loss limit hit
+        # Intraday daily loss lock
         if self._daily_pnl[today] <= -self.MAX_DAILY_LOSS:
             self._day_locked.add(today)
 
-        # Check trailing drawdown breach
+        # Intraday DD breach check (against floor set at last EOD)
         if self.balance <= self.dd_floor:
             self._phase = "failed"
             self.result.prop_status.phase = "failed"
@@ -360,7 +415,7 @@ class PropFirmEngine:
                 f"(balance ${self.balance:,.0f} ≤ floor ${self.dd_floor:,.0f})"
             )
 
-        # Check eval pass
+        # Eval pass
         if self._phase == "eval" and (self.balance - self.START_BAL) >= self.EVAL_TARGET:
             self._phase = "funded"
             self.result.prop_status.phase = "funded"
@@ -377,7 +432,7 @@ class PropFirmEngine:
 
         self._open_trade = None
 
-    # ── check stop/target on a candle ────────────────────────────────────────
+    # ── check stop/target on a candle ─────────────────────────────────────────
     def check_exit(self, candle: pd.Series, exit_time: pd.Timestamp):
         t = self._open_trade
         if t is None:
