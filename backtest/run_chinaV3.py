@@ -398,7 +398,7 @@ def run_backtest() -> dict:
     print(f"  Balance   : ${r['ending_balance']:,.2f}  (started $50,000)")
     print(f"  Winning days (funded): {r.get('winning_days', 0)} / 5 needed")
     if r.get('payout_eligible'):
-        print(f"  *** PAYOUT: ${r['payout_amount']:,.2f} (50% of balance) ***")
+        print(f"  Total withdrawn: ${r.get('total_withdrawn', 0):,.2f}")
     print(f"{'─'*58}\n")
 
     return r
