@@ -233,7 +233,10 @@ class PropFirmEngine:
     FUNDED_FLOOR_LOCK   = 2_000.0   # profit needed to lock floor at START_BAL
     MIN_WINNING_DAY     = 150.0     # $150 min for a winning day (payout)
     PAYOUT_WINNING_DAYS = 5         # 5 qualifying days needed
-    PAYOUT_AMOUNT       = 5_000.0   # fixed $5k per payout request
+    PAYOUT_MIN_PROFIT   = 10_000.0  # need $10k profit to request payout
+    PAYOUT_AMOUNT       = 5_000.0   # you receive $5k (50% of $10k profit)
+    # Full $10k (PAYOUT_MIN_PROFIT) is removed from account on payout —
+    # $5k to you, $5k back to the firm. Balance resets to START_BAL.
 
     DEFAULT_CONTRACTS = 2
     MAX_CONTRACTS     = 3
@@ -273,19 +276,16 @@ class PropFirmEngine:
         # Only move peak at EOD — this is the core rule change
         if not self._floor_locked:
             self.equity_peak = max(self.equity_peak, self.balance)
-            new_floor = self.equity_peak - self.TRAILING_DD
+            self.dd_floor = self.equity_peak - self.TRAILING_DD
 
-            if self._phase == "funded":
-                new_floor = max(new_floor, self.START_BAL)
-
-                # Lock floor once funded profit ≥ $2k
-                if (self.balance - self.START_BAL) >= self.FUNDED_FLOOR_LOCK:
-                    self._floor_locked = True
-                    new_floor = self.START_BAL
-                    print(f"  *** DD FLOOR LOCKED at ${self.START_BAL:,.0f} "
-                          f"(funded profit ≥ ${self.FUNDED_FLOOR_LOCK:,.0f}) ***")
-
-            self.dd_floor = new_floor
+            # Lock floor at START_BAL once the EOD peak reaches START_BAL + $2k
+            # (floor naturally equals START_BAL at that point — then it stops trailing)
+            if (self._phase == "funded" and
+                    (self.equity_peak - self.START_BAL) >= self.FUNDED_FLOOR_LOCK):
+                self._floor_locked = True
+                self.dd_floor = self.START_BAL
+                print(f"  *** DD FLOOR LOCKED at ${self.START_BAL:,.0f} "
+                      f"(funded peak ≥ ${self.START_BAL + self.FUNDED_FLOOR_LOCK:,.0f}) ***")
 
         # Track winning days for payout (funded phase only)
         if self._phase == "funded":
@@ -294,18 +294,21 @@ class PropFirmEngine:
                 self._winning_days.add(today)
 
             if len(self._winning_days) >= self.PAYOUT_WINNING_DAYS:
-                # Need enough profit above starting balance to cover the payout
-                if self.balance - self.START_BAL >= self.PAYOUT_AMOUNT:
-                    self.balance          -= self.PAYOUT_AMOUNT
+                # Need $10k profit: you take $5k, firm takes $5k, balance resets to START_BAL
+                if self.balance - self.START_BAL >= self.PAYOUT_MIN_PROFIT:
+                    self.balance           = self.START_BAL   # full $10k removed
+                    self.equity_peak       = self.START_BAL   # reset DD trail
+                    self.dd_floor          = self.START_BAL - self.TRAILING_DD
+                    self._floor_locked     = False            # $2k lock resets too
                     self._total_payouts   += 1
                     self._total_withdrawn += self.PAYOUT_AMOUNT
                     self._winning_days     = set()   # reset — need 5 more days
                     self.result.payout_eligible  = True
                     self.result.payout_amount    = self._total_withdrawn
                     self.result.winning_days     = 0
-                    print(f"  *** PAYOUT #{self._total_payouts} — ${self.PAYOUT_AMOUNT:,.0f} withdrawn  "
-                          f"Balance now ${self.balance:,.2f}  "
-                          f"(total withdrawn: ${self._total_withdrawn:,.0f}) ***")
+                    print(f"  *** PAYOUT #{self._total_payouts} — received ${self.PAYOUT_AMOUNT:,.0f}  "
+                          f"Balance reset to ${self.balance:,.2f}  "
+                          f"(total received: ${self._total_withdrawn:,.0f}) ***")
                     # Update equity curve with post-payout balance
                     if self.result.equity_curve:
                         self.result.equity_curve[-1]["equity"] = round(self.balance, 2)
