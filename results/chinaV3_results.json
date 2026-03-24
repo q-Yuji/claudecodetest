@@ -1,28 +1,28 @@
 {
   "NQ": {
     "starting_balance": 50000.0,
-    "ending_balance": 83742.2,
-    "total_trades": 50,
+    "ending_balance": 84097.4,
+    "total_trades": 49,
     "wins": 9,
-    "losses": 41,
+    "losses": 40,
     "breakevens": 0,
-    "win_rate": 18.0,
-    "avg_rr": 17.24,
-    "profit_factor": 3.5,
-    "net_pnl": 33742.2,
-    "max_drawdown": 3830.8,
-    "max_drawdown_pct": 6.9,
+    "win_rate": 18.4,
+    "avg_rr": 17.28,
+    "profit_factor": 3.6,
+    "net_pnl": 34097.4,
+    "max_drawdown": 3824.8,
+    "max_drawdown_pct": 5.6,
     "avg_win_usd": 5246.42,
-    "avg_loss_usd": 328.67,
-    "expectancy": 674.84,
+    "avg_loss_usd": 328.01,
+    "expectancy": 695.87,
     "sharpe_ratio": 7.05,
-    "sortino_ratio": 60.23,
-    "calmar_ratio": 79.27,
+    "sortino_ratio": 60.87,
+    "calmar_ratio": 80.23,
     "prop_phase": "funded",
     "prop_fail_reason": "",
     "winning_days": 9,
     "payout_eligible": true,
-    "payout_amount": 36148.3,
+    "payout_amount": 36325.9,
     "equity_curve": [
       {
         "time": "2026-01-12 07:00:00+00:00",
@@ -41,343 +41,343 @@
         "phase": "funded"
       },
       {
-        "time": "2026-01-13 15:00:00+00:00",
-        "equity": 55184.8,
-        "dd_floor": 48000.0,
+        "time": "2026-01-14 01:20:00+00:00",
+        "equity": 55194.8,
+        "dd_floor": 50000.0,
         "trade_id": 3,
         "outcome": "loss",
         "phase": "funded"
       },
       {
-        "time": "2026-01-13 16:55:00+00:00",
-        "equity": 54820.0,
-        "dd_floor": 48000.0,
+        "time": "2026-01-14 04:45:00+00:00",
+        "equity": 54994.8,
+        "dd_floor": 50000.0,
         "trade_id": 4,
         "outcome": "loss",
         "phase": "funded"
       },
       {
-        "time": "2026-01-14 01:20:00+00:00",
-        "equity": 54474.8,
+        "time": "2026-01-15 05:30:00+00:00",
+        "equity": 54714.8,
         "dd_floor": 50000.0,
         "trade_id": 5,
         "outcome": "loss",
         "phase": "funded"
       },
       {
-        "time": "2026-01-14 04:45:00+00:00",
-        "equity": 54274.8,
+        "time": "2026-01-15 05:35:00+00:00",
+        "equity": 54389.6,
         "dd_floor": 50000.0,
         "trade_id": 6,
         "outcome": "loss",
         "phase": "funded"
       },
       {
-        "time": "2026-01-15 05:30:00+00:00",
-        "equity": 53994.8,
+        "time": "2026-01-15 07:45:00+00:00",
+        "equity": 54014.4,
         "dd_floor": 50000.0,
         "trade_id": 7,
         "outcome": "loss",
         "phase": "funded"
       },
       {
-        "time": "2026-01-15 05:35:00+00:00",
-        "equity": 53669.6,
+        "time": "2026-01-16 13:05:00+00:00",
+        "equity": 53749.2,
         "dd_floor": 50000.0,
         "trade_id": 8,
         "outcome": "loss",
         "phase": "funded"
       },
       {
-        "time": "2026-01-15 07:45:00+00:00",
-        "equity": 53294.4,
+        "time": "2026-01-16 14:55:00+00:00",
+        "equity": 53454.0,
         "dd_floor": 50000.0,
         "trade_id": 9,
         "outcome": "loss",
         "phase": "funded"
       },
       {
-        "time": "2026-01-16 13:05:00+00:00",
-        "equity": 53029.2,
+        "time": "2026-01-19 04:35:00+00:00",
+        "equity": 53058.8,
         "dd_floor": 50000.0,
         "trade_id": 10,
         "outcome": "loss",
         "phase": "funded"
       },
       {
-        "time": "2026-01-16 14:55:00+00:00",
-        "equity": 52734.0,
+        "time": "2026-01-23 04:30:00+00:00",
+        "equity": 52814.0,
         "dd_floor": 50000.0,
         "trade_id": 11,
         "outcome": "loss",
         "phase": "funded"
       },
       {
-        "time": "2026-01-19 04:35:00+00:00",
-        "equity": 52338.8,
+        "time": "2026-01-23 07:45:00+00:00",
+        "equity": 52429.2,
         "dd_floor": 50000.0,
         "trade_id": 12,
         "outcome": "loss",
         "phase": "funded"
       },
       {
-        "time": "2026-01-23 04:30:00+00:00",
-        "equity": 52094.0,
+        "time": "2026-01-23 09:35:00+00:00",
+        "equity": 57544.4,
         "dd_floor": 50000.0,
         "trade_id": 13,
-        "outcome": "loss",
+        "outcome": "win",
         "phase": "funded"
       },
       {
-        "time": "2026-01-23 07:45:00+00:00",
-        "equity": 51709.2,
+        "time": "2026-01-23 15:20:00+00:00",
+        "equity": 57324.4,
         "dd_floor": 50000.0,
         "trade_id": 14,
         "outcome": "loss",
         "phase": "funded"
       },
       {
-        "time": "2026-01-23 09:35:00+00:00",
-        "equity": 56824.4,
+        "time": "2026-01-27 00:15:00+00:00",
+        "equity": 56999.2,
         "dd_floor": 50000.0,
         "trade_id": 15,
-        "outcome": "win",
-        "phase": "funded"
-      },
-      {
-        "time": "2026-01-23 15:20:00+00:00",
-        "equity": 56604.4,
-        "dd_floor": 50000.0,
-        "trade_id": 16,
         "outcome": "loss",
         "phase": "funded"
       },
       {
-        "time": "2026-01-27 00:15:00+00:00",
-        "equity": 56279.2,
+        "time": "2026-01-27 06:05:00+00:00",
+        "equity": 61364.4,
+        "dd_floor": 50000.0,
+        "trade_id": 16,
+        "outcome": "win",
+        "phase": "funded"
+      },
+      {
+        "time": "2026-01-27 06:10:00+00:00",
+        "equity": 60999.6,
         "dd_floor": 50000.0,
         "trade_id": 17,
         "outcome": "loss",
         "phase": "funded"
       },
       {
-        "time": "2026-01-27 06:05:00+00:00",
-        "equity": 60644.4,
+        "time": "2026-01-27 08:10:00+00:00",
+        "equity": 60719.6,
         "dd_floor": 50000.0,
         "trade_id": 18,
-        "outcome": "win",
-        "phase": "funded"
-      },
-      {
-        "time": "2026-01-27 08:10:00+00:00",
-        "equity": 60364.4,
-        "dd_floor": 50000.0,
-        "trade_id": 19,
         "outcome": "loss",
         "phase": "funded"
       },
       {
         "time": "2026-01-28 06:00:00+00:00",
-        "equity": 68149.4,
+        "equity": 68504.6,
+        "dd_floor": 50000.0,
+        "trade_id": 19,
+        "outcome": "win",
+        "phase": "funded"
+      },
+      {
+        "time": "2026-01-30 06:00:00+00:00",
+        "equity": 72651.8,
         "dd_floor": 50000.0,
         "trade_id": 20,
         "outcome": "win",
         "phase": "funded"
       },
       {
-        "time": "2026-01-30 06:00:00+00:00",
-        "equity": 72296.6,
+        "time": "2026-02-03 07:15:00+00:00",
+        "equity": 72251.8,
         "dd_floor": 50000.0,
         "trade_id": 21,
-        "outcome": "win",
+        "outcome": "loss",
         "phase": "funded"
       },
       {
-        "time": "2026-02-03 07:15:00+00:00",
-        "equity": 71896.6,
+        "time": "2026-02-03 08:50:00+00:00",
+        "equity": 71886.6,
         "dd_floor": 50000.0,
         "trade_id": 22,
         "outcome": "loss",
         "phase": "funded"
       },
       {
-        "time": "2026-02-03 08:50:00+00:00",
-        "equity": 71531.4,
+        "time": "2026-02-03 13:05:00+00:00",
+        "equity": 71546.6,
         "dd_floor": 50000.0,
         "trade_id": 23,
         "outcome": "loss",
         "phase": "funded"
       },
       {
-        "time": "2026-02-03 13:05:00+00:00",
-        "equity": 71191.4,
+        "time": "2026-02-03 13:10:00+00:00",
+        "equity": 71196.6,
         "dd_floor": 50000.0,
         "trade_id": 24,
         "outcome": "loss",
         "phase": "funded"
       },
       {
-        "time": "2026-02-03 13:10:00+00:00",
-        "equity": 70841.4,
+        "time": "2026-02-04 03:30:00+00:00",
+        "equity": 70836.6,
         "dd_floor": 50000.0,
         "trade_id": 25,
         "outcome": "loss",
         "phase": "funded"
       },
       {
-        "time": "2026-02-04 03:30:00+00:00",
-        "equity": 70481.4,
+        "time": "2026-02-04 08:25:00+00:00",
+        "equity": 70496.6,
         "dd_floor": 50000.0,
         "trade_id": 26,
         "outcome": "loss",
         "phase": "funded"
       },
       {
-        "time": "2026-02-04 08:25:00+00:00",
-        "equity": 70141.4,
+        "time": "2026-02-10 02:35:00+00:00",
+        "equity": 70116.6,
         "dd_floor": 50000.0,
         "trade_id": 27,
         "outcome": "loss",
         "phase": "funded"
       },
       {
-        "time": "2026-02-10 02:35:00+00:00",
-        "equity": 69761.4,
+        "time": "2026-02-10 06:35:00+00:00",
+        "equity": 69821.8,
         "dd_floor": 50000.0,
         "trade_id": 28,
         "outcome": "loss",
         "phase": "funded"
       },
       {
-        "time": "2026-02-10 06:35:00+00:00",
-        "equity": 69466.6,
+        "time": "2026-02-10 14:40:00+00:00",
+        "equity": 69447.0,
         "dd_floor": 50000.0,
         "trade_id": 29,
         "outcome": "loss",
         "phase": "funded"
       },
       {
-        "time": "2026-02-10 14:40:00+00:00",
-        "equity": 69091.8,
+        "time": "2026-02-11 15:15:00+00:00",
+        "equity": 69047.0,
         "dd_floor": 50000.0,
         "trade_id": 30,
         "outcome": "loss",
         "phase": "funded"
       },
       {
-        "time": "2026-02-11 15:15:00+00:00",
-        "equity": 68691.8,
+        "time": "2026-02-12 06:00:00+00:00",
+        "equity": 68827.0,
         "dd_floor": 50000.0,
         "trade_id": 31,
         "outcome": "loss",
         "phase": "funded"
       },
       {
-        "time": "2026-02-12 06:00:00+00:00",
-        "equity": 68471.8,
+        "time": "2026-02-12 13:40:00+00:00",
+        "equity": 72457.0,
         "dd_floor": 50000.0,
         "trade_id": 32,
-        "outcome": "loss",
-        "phase": "funded"
-      },
-      {
-        "time": "2026-02-12 13:40:00+00:00",
-        "equity": 72101.8,
-        "dd_floor": 50000.0,
-        "trade_id": 33,
         "outcome": "win",
         "phase": "funded"
       },
       {
         "time": "2026-02-16 03:00:00+00:00",
-        "equity": 71756.6,
+        "equity": 72111.8,
+        "dd_floor": 50000.0,
+        "trade_id": 33,
+        "outcome": "loss",
+        "phase": "funded"
+      },
+      {
+        "time": "2026-02-18 01:20:00+00:00",
+        "equity": 71751.8,
         "dd_floor": 50000.0,
         "trade_id": 34,
         "outcome": "loss",
         "phase": "funded"
       },
       {
-        "time": "2026-02-18 01:20:00+00:00",
-        "equity": 71396.6,
+        "time": "2026-02-18 09:30:00+00:00",
+        "equity": 79061.8,
         "dd_floor": 50000.0,
         "trade_id": 35,
-        "outcome": "loss",
-        "phase": "funded"
-      },
-      {
-        "time": "2026-02-18 09:30:00+00:00",
-        "equity": 78706.6,
-        "dd_floor": 50000.0,
-        "trade_id": 36,
         "outcome": "win",
         "phase": "funded"
       },
       {
         "time": "2026-02-20 04:05:00+00:00",
-        "equity": 78446.6,
+        "equity": 78801.8,
+        "dd_floor": 50000.0,
+        "trade_id": 36,
+        "outcome": "loss",
+        "phase": "funded"
+      },
+      {
+        "time": "2026-02-20 05:05:00+00:00",
+        "equity": 78427.0,
         "dd_floor": 50000.0,
         "trade_id": 37,
         "outcome": "loss",
         "phase": "funded"
       },
       {
-        "time": "2026-02-20 05:05:00+00:00",
-        "equity": 78071.8,
+        "time": "2026-02-25 08:00:00+00:00",
+        "equity": 78067.0,
         "dd_floor": 50000.0,
         "trade_id": 38,
         "outcome": "loss",
         "phase": "funded"
       },
       {
-        "time": "2026-02-25 08:00:00+00:00",
-        "equity": 77711.8,
+        "time": "2026-02-26 08:20:00+00:00",
+        "equity": 82067.0,
         "dd_floor": 50000.0,
         "trade_id": 39,
-        "outcome": "loss",
-        "phase": "funded"
-      },
-      {
-        "time": "2026-02-26 08:20:00+00:00",
-        "equity": 81711.8,
-        "dd_floor": 50000.0,
-        "trade_id": 40,
         "outcome": "win",
         "phase": "funded"
       },
       {
         "time": "2026-02-26 15:15:00+00:00",
-        "equity": 81397.0,
+        "equity": 81752.2,
+        "dd_floor": 50000.0,
+        "trade_id": 40,
+        "outcome": "loss",
+        "phase": "funded"
+      },
+      {
+        "time": "2026-02-27 06:10:00+00:00",
+        "equity": 81427.4,
         "dd_floor": 50000.0,
         "trade_id": 41,
         "outcome": "loss",
         "phase": "funded"
       },
       {
-        "time": "2026-02-27 06:10:00+00:00",
-        "equity": 81072.2,
+        "time": "2026-03-05 09:05:00+00:00",
+        "equity": 81037.4,
         "dd_floor": 50000.0,
         "trade_id": 42,
         "outcome": "loss",
         "phase": "funded"
       },
       {
-        "time": "2026-03-05 09:05:00+00:00",
-        "equity": 80682.2,
+        "time": "2026-03-06 08:25:00+00:00",
+        "equity": 80727.4,
         "dd_floor": 50000.0,
         "trade_id": 43,
         "outcome": "loss",
         "phase": "funded"
       },
       {
-        "time": "2026-03-06 08:25:00+00:00",
-        "equity": 80372.2,
+        "time": "2026-03-11 04:55:00+00:00",
+        "equity": 80442.6,
         "dd_floor": 50000.0,
         "trade_id": 44,
         "outcome": "loss",
         "phase": "funded"
       },
       {
-        "time": "2026-03-11 04:55:00+00:00",
+        "time": "2026-03-12 13:10:00+00:00",
         "equity": 80087.4,
         "dd_floor": 50000.0,
         "trade_id": 45,
@@ -385,42 +385,34 @@
         "phase": "funded"
       },
       {
-        "time": "2026-03-12 13:10:00+00:00",
-        "equity": 79732.2,
+        "time": "2026-03-13 00:20:00+00:00",
+        "equity": 79577.4,
         "dd_floor": 50000.0,
         "trade_id": 46,
         "outcome": "loss",
         "phase": "funded"
       },
       {
-        "time": "2026-03-13 00:20:00+00:00",
-        "equity": 79222.2,
+        "time": "2026-03-16 06:55:00+00:00",
+        "equity": 79272.2,
         "dd_floor": 50000.0,
         "trade_id": 47,
         "outcome": "loss",
         "phase": "funded"
       },
       {
-        "time": "2026-03-16 06:55:00+00:00",
-        "equity": 78917.0,
+        "time": "2026-03-18 05:10:00+00:00",
+        "equity": 84377.4,
         "dd_floor": 50000.0,
         "trade_id": 48,
-        "outcome": "loss",
-        "phase": "funded"
-      },
-      {
-        "time": "2026-03-18 05:10:00+00:00",
-        "equity": 84022.2,
-        "dd_floor": 50000.0,
-        "trade_id": 49,
         "outcome": "win",
         "phase": "funded"
       },
       {
         "time": "2026-03-18 11:25:00+00:00",
-        "equity": 83742.2,
+        "equity": 84097.4,
         "dd_floor": 50000.0,
-        "trade_id": 50,
+        "trade_id": 49,
         "outcome": "loss",
         "phase": "funded"
       }
@@ -463,40 +455,6 @@
       {
         "id": 3,
         "asset": "NQ",
-        "direction": "long",
-        "entry_time": "2026-01-13 13:30:00+00:00",
-        "exit_time": "2026-01-13 15:00:00+00:00",
-        "entry_price": 25916.88,
-        "exit_price": 25908.0,
-        "pnl": -355.2,
-        "outcome": "loss",
-        "rr": 14.48,
-        "contracts": 2,
-        "div_confirmed": false,
-        "entry_type": "SMT",
-        "high_conviction": false,
-        "stop_pts": 8.88
-      },
-      {
-        "id": 4,
-        "asset": "NQ",
-        "direction": "short",
-        "entry_time": "2026-01-13 16:50:00+00:00",
-        "exit_time": "2026-01-13 16:55:00+00:00",
-        "entry_price": 26011.88,
-        "exit_price": 26021.0,
-        "pnl": -364.8,
-        "outcome": "loss",
-        "rr": 22.22,
-        "contracts": 2,
-        "div_confirmed": false,
-        "entry_type": "SMT",
-        "high_conviction": false,
-        "stop_pts": 9.12
-      },
-      {
-        "id": 5,
-        "asset": "NQ",
         "direction": "short",
         "entry_time": "2026-01-14 00:55:00+00:00",
         "exit_time": "2026-01-14 01:20:00+00:00",
@@ -512,7 +470,7 @@
         "stop_pts": 8.63
       },
       {
-        "id": 6,
+        "id": 4,
         "asset": "NQ",
         "direction": "long",
         "entry_time": "2026-01-14 02:55:00+00:00",
@@ -529,7 +487,7 @@
         "stop_pts": 5.0
       },
       {
-        "id": 7,
+        "id": 5,
         "asset": "NQ",
         "direction": "short",
         "entry_time": "2026-01-15 03:10:00+00:00",
@@ -546,7 +504,7 @@
         "stop_pts": 7.0
       },
       {
-        "id": 8,
+        "id": 6,
         "asset": "NQ",
         "direction": "short",
         "entry_time": "2026-01-15 05:30:00+00:00",
@@ -563,7 +521,7 @@
         "stop_pts": 8.13
       },
       {
-        "id": 9,
+        "id": 7,
         "asset": "NQ",
         "direction": "long",
         "entry_time": "2026-01-15 07:35:00+00:00",
@@ -580,7 +538,7 @@
         "stop_pts": 9.38
       },
       {
-        "id": 10,
+        "id": 8,
         "asset": "NQ",
         "direction": "long",
         "entry_time": "2026-01-16 13:00:00+00:00",
@@ -597,7 +555,7 @@
         "stop_pts": 6.63
       },
       {
-        "id": 11,
+        "id": 9,
         "asset": "NQ",
         "direction": "long",
         "entry_time": "2026-01-16 14:50:00+00:00",
@@ -614,7 +572,7 @@
         "stop_pts": 7.38
       },
       {
-        "id": 12,
+        "id": 10,
         "asset": "NQ",
         "direction": "long",
         "entry_time": "2026-01-16 15:40:00+00:00",
@@ -631,7 +589,7 @@
         "stop_pts": 9.88
       },
       {
-        "id": 13,
+        "id": 11,
         "asset": "NQ",
         "direction": "short",
         "entry_time": "2026-01-23 03:50:00+00:00",
@@ -648,7 +606,7 @@
         "stop_pts": 6.12
       },
       {
-        "id": 14,
+        "id": 12,
         "asset": "NQ",
         "direction": "long",
         "entry_time": "2026-01-23 04:50:00+00:00",
@@ -665,7 +623,7 @@
         "stop_pts": 9.62
       },
       {
-        "id": 15,
+        "id": 13,
         "asset": "NQ",
         "direction": "short",
         "entry_time": "2026-01-23 07:45:00+00:00",
@@ -682,7 +640,7 @@
         "stop_pts": 5.37
       },
       {
-        "id": 16,
+        "id": 14,
         "asset": "NQ",
         "direction": "short",
         "entry_time": "2026-01-23 15:00:00+00:00",
@@ -699,7 +657,7 @@
         "stop_pts": 5.5
       },
       {
-        "id": 17,
+        "id": 15,
         "asset": "NQ",
         "direction": "short",
         "entry_time": "2026-01-27 00:05:00+00:00",
@@ -716,7 +674,7 @@
         "stop_pts": 8.13
       },
       {
-        "id": 18,
+        "id": 16,
         "asset": "NQ",
         "direction": "long",
         "entry_time": "2026-01-27 01:40:00+00:00",
@@ -733,7 +691,24 @@
         "stop_pts": 4.12
       },
       {
-        "id": 19,
+        "id": 17,
+        "asset": "NQ",
+        "direction": "short",
+        "entry_time": "2026-01-27 06:05:00+00:00",
+        "exit_time": "2026-01-27 06:10:00+00:00",
+        "entry_price": 26011.88,
+        "exit_price": 26021.0,
+        "pnl": -364.8,
+        "outcome": "loss",
+        "rr": 20.98,
+        "contracts": 2,
+        "div_confirmed": false,
+        "entry_type": "SMT",
+        "high_conviction": false,
+        "stop_pts": 9.12
+      },
+      {
+        "id": 18,
         "asset": "NQ",
         "direction": "long",
         "entry_time": "2026-01-27 07:20:00+00:00",
@@ -750,7 +725,7 @@
         "stop_pts": 7.0
       },
       {
-        "id": 20,
+        "id": 19,
         "asset": "NQ",
         "direction": "long",
         "entry_time": "2026-01-28 00:00:00+00:00",
@@ -767,7 +742,7 @@
         "stop_pts": 5.25
       },
       {
-        "id": 21,
+        "id": 20,
         "asset": "NQ",
         "direction": "short",
         "entry_time": "2026-01-30 04:20:00+00:00",
@@ -784,7 +759,7 @@
         "stop_pts": 6.88
       },
       {
-        "id": 22,
+        "id": 21,
         "asset": "NQ",
         "direction": "long",
         "entry_time": "2026-02-03 06:35:00+00:00",
@@ -801,7 +776,7 @@
         "stop_pts": 10.0
       },
       {
-        "id": 23,
+        "id": 22,
         "asset": "NQ",
         "direction": "long",
         "entry_time": "2026-02-03 07:25:00+00:00",
@@ -818,7 +793,7 @@
         "stop_pts": 9.13
       },
       {
-        "id": 24,
+        "id": 23,
         "asset": "NQ",
         "direction": "short",
         "entry_time": "2026-02-03 13:00:00+00:00",
@@ -835,7 +810,7 @@
         "stop_pts": 8.5
       },
       {
-        "id": 25,
+        "id": 24,
         "asset": "NQ",
         "direction": "short",
         "entry_time": "2026-02-03 13:05:00+00:00",
@@ -852,7 +827,7 @@
         "stop_pts": 8.75
       },
       {
-        "id": 26,
+        "id": 25,
         "asset": "NQ",
         "direction": "short",
         "entry_time": "2026-02-04 02:35:00+00:00",
@@ -869,7 +844,7 @@
         "stop_pts": 9.0
       },
       {
-        "id": 27,
+        "id": 26,
         "asset": "NQ",
         "direction": "long",
         "entry_time": "2026-02-04 05:55:00+00:00",
@@ -886,7 +861,7 @@
         "stop_pts": 8.5
       },
       {
-        "id": 28,
+        "id": 27,
         "asset": "NQ",
         "direction": "long",
         "entry_time": "2026-02-10 02:25:00+00:00",
@@ -903,7 +878,7 @@
         "stop_pts": 9.5
       },
       {
-        "id": 29,
+        "id": 28,
         "asset": "NQ",
         "direction": "long",
         "entry_time": "2026-02-10 06:20:00+00:00",
@@ -920,7 +895,7 @@
         "stop_pts": 7.37
       },
       {
-        "id": 30,
+        "id": 29,
         "asset": "NQ",
         "direction": "long",
         "entry_time": "2026-02-10 06:35:00+00:00",
@@ -937,7 +912,7 @@
         "stop_pts": 9.37
       },
       {
-        "id": 31,
+        "id": 30,
         "asset": "NQ",
         "direction": "long",
         "entry_time": "2026-02-11 15:10:00+00:00",
@@ -954,7 +929,7 @@
         "stop_pts": 10.0
       },
       {
-        "id": 32,
+        "id": 31,
         "asset": "NQ",
         "direction": "long",
         "entry_time": "2026-02-12 04:55:00+00:00",
@@ -971,7 +946,7 @@
         "stop_pts": 5.5
       },
       {
-        "id": 33,
+        "id": 32,
         "asset": "NQ",
         "direction": "long",
         "entry_time": "2026-02-12 06:50:00+00:00",
@@ -988,7 +963,7 @@
         "stop_pts": 10.0
       },
       {
-        "id": 34,
+        "id": 33,
         "asset": "NQ",
         "direction": "long",
         "entry_time": "2026-02-16 01:40:00+00:00",
@@ -1005,7 +980,7 @@
         "stop_pts": 8.63
       },
       {
-        "id": 35,
+        "id": 34,
         "asset": "NQ",
         "direction": "short",
         "entry_time": "2026-02-18 01:05:00+00:00",
@@ -1022,7 +997,7 @@
         "stop_pts": 9.0
       },
       {
-        "id": 36,
+        "id": 35,
         "asset": "NQ",
         "direction": "long",
         "entry_time": "2026-02-18 02:25:00+00:00",
@@ -1039,7 +1014,7 @@
         "stop_pts": 9.0
       },
       {
-        "id": 37,
+        "id": 36,
         "asset": "NQ",
         "direction": "short",
         "entry_time": "2026-02-20 03:25:00+00:00",
@@ -1056,7 +1031,7 @@
         "stop_pts": 6.5
       },
       {
-        "id": 38,
+        "id": 37,
         "asset": "NQ",
         "direction": "short",
         "entry_time": "2026-02-20 04:20:00+00:00",
@@ -1073,7 +1048,7 @@
         "stop_pts": 9.37
       },
       {
-        "id": 39,
+        "id": 38,
         "asset": "NQ",
         "direction": "short",
         "entry_time": "2026-02-25 07:10:00+00:00",
@@ -1090,7 +1065,7 @@
         "stop_pts": 9.0
       },
       {
-        "id": 40,
+        "id": 39,
         "asset": "NQ",
         "direction": "long",
         "entry_time": "2026-02-26 05:20:00+00:00",
@@ -1107,7 +1082,7 @@
         "stop_pts": 9.25
       },
       {
-        "id": 41,
+        "id": 40,
         "asset": "NQ",
         "direction": "long",
         "entry_time": "2026-02-26 15:10:00+00:00",
@@ -1124,7 +1099,7 @@
         "stop_pts": 7.87
       },
       {
-        "id": 42,
+        "id": 41,
         "asset": "NQ",
         "direction": "long",
         "entry_time": "2026-02-27 05:10:00+00:00",
@@ -1141,7 +1116,7 @@
         "stop_pts": 8.12
       },
       {
-        "id": 43,
+        "id": 42,
         "asset": "NQ",
         "direction": "short",
         "entry_time": "2026-03-05 05:10:00+00:00",
@@ -1158,7 +1133,7 @@
         "stop_pts": 9.75
       },
       {
-        "id": 44,
+        "id": 43,
         "asset": "NQ",
         "direction": "long",
         "entry_time": "2026-03-06 01:25:00+00:00",
@@ -1175,7 +1150,7 @@
         "stop_pts": 7.75
       },
       {
-        "id": 45,
+        "id": 44,
         "asset": "NQ",
         "direction": "long",
         "entry_time": "2026-03-11 04:50:00+00:00",
@@ -1192,7 +1167,7 @@
         "stop_pts": 7.12
       },
       {
-        "id": 46,
+        "id": 45,
         "asset": "NQ",
         "direction": "long",
         "entry_time": "2026-03-12 13:00:00+00:00",
@@ -1209,7 +1184,7 @@
         "stop_pts": 8.88
       },
       {
-        "id": 47,
+        "id": 46,
         "asset": "NQ",
         "direction": "short",
         "entry_time": "2026-03-13 00:15:00+00:00",
@@ -1226,7 +1201,7 @@
         "stop_pts": 8.5
       },
       {
-        "id": 48,
+        "id": 47,
         "asset": "NQ",
         "direction": "short",
         "entry_time": "2026-03-16 06:10:00+00:00",
@@ -1243,7 +1218,7 @@
         "stop_pts": 7.63
       },
       {
-        "id": 49,
+        "id": 48,
         "asset": "NQ",
         "direction": "long",
         "entry_time": "2026-03-18 00:00:00+00:00",
@@ -1260,7 +1235,7 @@
         "stop_pts": 8.37
       },
       {
-        "id": 50,
+        "id": 49,
         "asset": "NQ",
         "direction": "long",
         "entry_time": "2026-03-18 05:10:00+00:00",

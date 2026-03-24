@@ -228,6 +228,7 @@ class PropFirmEngine:
     START_BAL           = 50_000.0
     EVAL_TARGET         = 3_000.0
     MAX_DAILY_LOSS      = 1_500.0
+    MAX_DAILY_PROFIT_EVAL = 1_500.0  # eval only: can't bank more than $1.5k/day
     TRAILING_DD         = 2_000.0
     FUNDED_FLOOR_LOCK   = 2_000.0   # profit needed to lock floor at START_BAL
     MIN_WINNING_DAY     = 150.0     # $150 min for a winning day (payout)
@@ -404,6 +405,11 @@ class PropFirmEngine:
 
         # Intraday daily loss lock
         if self._daily_pnl[today] <= -self.MAX_DAILY_LOSS:
+            self._day_locked.add(today)
+
+        # Eval daily profit cap — can't make more than $1,500/day in eval
+        if (self._phase == "eval" and
+                self._daily_pnl[today] >= self.MAX_DAILY_PROFIT_EVAL):
             self._day_locked.add(today)
 
         # Intraday DD breach check (against floor set at last EOD)
