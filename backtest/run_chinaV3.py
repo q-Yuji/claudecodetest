@@ -395,7 +395,8 @@ def run_backtest() -> dict:
     print(f"  P-factor  : {r['profit_factor']}")
     print(f"  Net P&L   : ${r['net_pnl']:,.2f}")
     print(f"  Max DD    : ${r['max_drawdown']:,.2f}  ({r['max_drawdown_pct']}%)")
-    print(f"  Balance   : ${r['ending_balance']:,.2f}  (started $50,000)")
+    print(f"  Eval profit: ${r.get('eval_profit', 0):,.2f}")
+    print(f"  Funded P&L : ${r['net_pnl']:,.2f}  (funded starts at $0)")
     print(f"  Winning days (funded): {r.get('winning_days', 0)} / 5 needed")
     if r.get('payout_eligible'):
         print(f"  Total withdrawn: ${r.get('total_withdrawn', 0):,.2f}")

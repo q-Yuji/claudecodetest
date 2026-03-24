@@ -61,6 +61,7 @@ class Trade:
 class PropFirmStatus:
     phase: Literal["eval", "funded", "failed", "passed"] = "eval"
     fail_reason: str = ""
+    eval_profit: float = 0.0
 
 
 @dataclass
@@ -123,7 +124,11 @@ class BacktestResult:
             peak = eq.cummax()
             dd   = eq - peak
             self.max_drawdown     = float(abs(dd.min()))
-            self.max_drawdown_pct = float(abs((dd / peak).min()) * 100)
+            # Pct DD only meaningful when starting balance > 0
+            if peak.max() > 0:
+                self.max_drawdown_pct = float(abs((dd / peak.clip(lower=0.01)).min()) * 100)
+            else:
+                self.max_drawdown_pct = 0.0
 
         # ── risk-adjusted metrics ─────────────────────────────────────────────
         if closed:
@@ -176,6 +181,7 @@ class BacktestResult:
             "calmar_ratio":     self.calmar_ratio,
             "prop_phase":       self.prop_status.phase,
             "prop_fail_reason": self.prop_status.fail_reason,
+            "eval_profit":      round(self.prop_status.eval_profit, 2),
             "winning_days":     self.winning_days,
             "payout_eligible":  self.payout_eligible,
             "total_withdrawn":  round(self.payout_amount, 2),
@@ -209,34 +215,42 @@ class PropFirmEngine:
 
     KEY: Trailing DD is END-OF-DAY only.
       - The floor only moves up after market close each day.
-      - Intraday losses are checked against the current floor, but
-        a winning trade intraday does NOT raise the floor until EOD.
       - Call end_of_day(today) at the close of each trading session.
 
-    Eval:
-      - Profit target $3,000 → phase switches to "funded"
-      - Max daily loss $1,500 → day locked
-      - Trailing DD $2,000 (EOD) → account failed if balance ≤ floor
+    Eval (notional $50k account):
+      - Balance starts at $50,000
+      - Profit target $3,000 (balance ≥ $53k) → phase switches to "funded"
+      - Max daily loss $1,500 | Max daily profit $1,500 (min 2 days to pass)
+      - Trailing DD $2,000 EOD from equity peak
 
-    Funded:
+    Funded (P&L account — starts at $0):
+      - Balance resets to $0 on eval pass
+      - Floor starts at -$2,000 (you can lose up to $2k before failing)
+      - Trailing DD $2,000 EOD — floor trails up as you profit
+      - Once peak ≥ $2,000 → floor locks at $0 (can't lose your profits)
       - Max daily loss $1,500
-      - Trailing DD $2,000 (EOD), floor ≥ START_BAL always
-      - Once funded profit ≥ $2,000 → floor LOCKS at START_BAL (stops trailing)
-      - Payout: 5 winning days (each ≥ $150) → eligible to withdraw 50% of balance
+      - Payout: 5 winning days ≥ $150 AND balance ≥ $10,000
+        → receive $5,000 (50% of $10k), balance resets to $0, floor to -$2,000
     """
 
-    START_BAL           = 50_000.0
+    # Eval constants (notional $50k account)
+    EVAL_START_BAL      = 50_000.0
     EVAL_TARGET         = 3_000.0
     MAX_DAILY_LOSS      = 1_500.0
-    MAX_DAILY_PROFIT_EVAL = 1_500.0  # eval only: can't bank more than $1.5k/day
+    MAX_DAILY_PROFIT_EVAL = 1_500.0
+
+    # Funded constants (P&L account, starts at $0)
+    FUNDED_START        = 0.0
     TRAILING_DD         = 2_000.0
-    FUNDED_FLOOR_LOCK   = 2_000.0   # profit needed to lock floor at START_BAL
-    MIN_WINNING_DAY     = 150.0     # $150 min for a winning day (payout)
-    PAYOUT_WINNING_DAYS = 5         # 5 qualifying days needed
-    PAYOUT_MIN_PROFIT   = 10_000.0  # need $10k profit to request payout
-    PAYOUT_AMOUNT       = 5_000.0   # you receive $5k (50% of $10k profit)
-    # Full $10k (PAYOUT_MIN_PROFIT) is removed from account on payout —
-    # $5k to you, $5k back to the firm. Balance resets to START_BAL.
+    FUNDED_FLOOR_INIT   = -2_000.0  # starting floor in funded
+    FUNDED_FLOOR_LOCK_AT = 0.0      # floor locks here once peak ≥ $2k
+    FUNDED_FLOOR_LOCK_PROFIT = 2_000.0  # profit needed to lock floor
+
+    # Payout
+    MIN_WINNING_DAY     = 150.0
+    PAYOUT_WINNING_DAYS = 5
+    PAYOUT_MIN_PROFIT   = 10_000.0  # need $10k balance to request
+    PAYOUT_AMOUNT       = 5_000.0   # you receive $5k; full $10k removed (50/50 split)
 
     DEFAULT_CONTRACTS = 2
     MAX_CONTRACTS     = 3
@@ -245,11 +259,11 @@ class PropFirmEngine:
     MAX_RR            = 50.0
 
     def __init__(self):
-        self.balance        = self.START_BAL
-        self.equity_peak    = self.START_BAL   # highest EOD equity seen
-        self.dd_floor       = self.START_BAL - self.TRAILING_DD   # $48,000
-        self._floor_locked  = False            # True once funded profit ≥ $2k
-        self.result         = BacktestResult(starting_balance=self.START_BAL)
+        self.balance        = self.EVAL_START_BAL
+        self.equity_peak    = self.EVAL_START_BAL
+        self.dd_floor       = self.EVAL_START_BAL - self.TRAILING_DD   # $48k
+        self._floor_locked  = False
+        self.result         = BacktestResult(starting_balance=self.EVAL_START_BAL)
         self._trade_id      = 0
         self._daily_pnl:  dict[date, float] = {}
         self._day_locked: set[date]         = set()
@@ -273,19 +287,17 @@ class PropFirmEngine:
         if not self.active:
             return
 
-        # Only move peak at EOD — this is the core rule change
+        # Only move peak at EOD
         if not self._floor_locked:
             self.equity_peak = max(self.equity_peak, self.balance)
             self.dd_floor = self.equity_peak - self.TRAILING_DD
 
-            # Lock floor at START_BAL once the EOD peak reaches START_BAL + $2k
-            # (floor naturally equals START_BAL at that point — then it stops trailing)
+            # Funded: lock floor at $0 once peak ≥ $2k (can't lose your profits)
             if (self._phase == "funded" and
-                    (self.equity_peak - self.START_BAL) >= self.FUNDED_FLOOR_LOCK):
+                    self.equity_peak >= self.FUNDED_FLOOR_LOCK_PROFIT):
                 self._floor_locked = True
-                self.dd_floor = self.START_BAL
-                print(f"  *** DD FLOOR LOCKED at ${self.START_BAL:,.0f} "
-                      f"(funded peak ≥ ${self.START_BAL + self.FUNDED_FLOOR_LOCK:,.0f}) ***")
+                self.dd_floor = self.FUNDED_FLOOR_LOCK_AT   # $0
+                print(f"  *** DD FLOOR LOCKED at $0 (funded peak ≥ ${self.FUNDED_FLOOR_LOCK_PROFIT:,.0f}) ***")
 
         # Track winning days for payout (funded phase only)
         if self._phase == "funded":
@@ -294,12 +306,12 @@ class PropFirmEngine:
                 self._winning_days.add(today)
 
             if len(self._winning_days) >= self.PAYOUT_WINNING_DAYS:
-                # Need $10k profit: you take $5k, firm takes $5k, balance resets to START_BAL
-                if self.balance - self.START_BAL >= self.PAYOUT_MIN_PROFIT:
-                    self.balance           = self.START_BAL   # full $10k removed
-                    self.equity_peak       = self.START_BAL   # reset DD trail
-                    self.dd_floor          = self.START_BAL - self.TRAILING_DD
-                    self._floor_locked     = False            # $2k lock resets too
+                # Need $10k balance: you take $5k, firm takes $5k, balance resets to $0
+                if self.balance >= self.PAYOUT_MIN_PROFIT:
+                    self.balance           = self.FUNDED_START       # resets to $0
+                    self.equity_peak       = self.FUNDED_START
+                    self.dd_floor          = self.FUNDED_FLOOR_INIT  # -$2,000
+                    self._floor_locked     = False
                     self._total_payouts   += 1
                     self._total_withdrawn += self.PAYOUT_AMOUNT
                     self._winning_days     = set()   # reset — need 5 more days
@@ -432,11 +444,23 @@ class PropFirmEngine:
                 f"(balance ${self.balance:,.0f} ≤ floor ${self.dd_floor:,.0f})"
             )
 
-        # Eval pass
-        if self._phase == "eval" and (self.balance - self.START_BAL) >= self.EVAL_TARGET:
+        # Eval pass — switch to funded, reset balance to $0 P&L account
+        if self._phase == "eval" and (self.balance - self.EVAL_START_BAL) >= self.EVAL_TARGET:
+            eval_profit = self.balance - self.EVAL_START_BAL
             self._phase = "funded"
-            self.result.prop_status.phase = "funded"
-            print(f"  *** EVAL PASSED at {exit_time} — balance ${self.balance:,.2f} ***")
+            self.result.prop_status.phase      = "funded"
+            self.result.prop_status.eval_profit = eval_profit
+            print(f"  *** EVAL PASSED at {exit_time} "
+                  f"(eval profit ${eval_profit:,.2f}) — funded account starts at $0 ***")
+            # Reset to funded P&L account ($0 base)
+            self.balance       = self.FUNDED_START
+            self.equity_peak   = self.FUNDED_START
+            self.dd_floor      = self.FUNDED_FLOOR_INIT   # -$2,000
+            self._floor_locked = False
+            # Reset result tracking — funded phase stats start fresh from $0
+            self.result.equity_curve.clear()
+            self.result.trades.clear()
+            self.result.starting_balance = self.FUNDED_START
 
         self.result.equity_curve.append({
             "time":     str(exit_time),
