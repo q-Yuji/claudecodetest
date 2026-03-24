@@ -216,7 +216,7 @@ class PropFirmEngine:
     MAX_CONTRACTS     = 3         # high-conviction only
     MAX_STOP_PTS      = 10.0      # never risk more than 10 NQ points on a stop
     MIN_RR            = 2.0
-    MAX_RR            = 10.0
+    MAX_RR            = 50.0     # distribution legs can be 10-30R+ at CE entries
 
     def __init__(self):
         self.balance       = self.START_BAL

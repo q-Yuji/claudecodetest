@@ -1,33 +1,28 @@
 """
 chinaV3 backtest — NQ only, intraday day-trader approach.
 
-AMD runs at two levels:
-  Session level : Asia accumulates → London open manipulates → NY distributes
-  Intraday      : micro AMD cycle within each session on 5min
+AMD context on 15min, entries on 3min SMT (2-candle orderblock):
 
 Timeframes:
   4H    → confirms 1H bias (high conviction only — not required)
   1H    → primary trend bias for the session
-  5min  → FBOS + RBOS + IDM POI
-  3min  → SMT entries
-  1min  → OTE entry refinement
+  15min → AMD context: FBOS/RBOS detection → IDM TARGET levels (not entries)
+  3min  → SMT entries (2-candle OB at swing extreme)
+  1min  → OTE entry refinement (optional)
   ES    → DIV filter only
 
-Trend filter (relaxed):
-  1H clear bull/bear  → trade allowed; if 4H agrees → high_conviction (3 cts)
-  1H neutral          → no trade
+Entry mechanics:
+  SMT = 2-candle orderblock on 3min at swing extreme.
+  Entry at CE (50% midpoint of SMT range).
+  Stop beyond far edge of 3min range.
+  TP: nearest IDM target (15min) ≥50pts away; fallback to 1H swing.
 
 Session trading windows (UTC):
-  London distribution : 08:00–12:00
-  NY distribution     : 14:00–18:00
-  (entries outside these windows skipped — AMD not in distribution phase)
+  Asia   : 00:00–08:00
+  NY AM  : 13:30–18:00
 
-POI expiry (realistic):
-  POI blown only when close > 50% of POI width past the far edge
-  (not a mere 2-tick close — waiting for a real reaction first)
-
-Sizing: 2 contracts standard, 3 on high-conviction (1H + 4H agree).
-Max stop: 10 NQ points.
+Sizing: 2 contracts standard, 3 on high-conviction (4H + 1H agree).
+Max stop: 10 NQ points.  Min target: 50 NQ points.
 
 Prop firm: MyFutureFunded / Topstep $50k eval rules.
   Eval:   profit target $3,000 | daily loss $1,500 | trailing DD $2,000
@@ -149,10 +144,10 @@ def run_backtest() -> dict:
           f"5min: {len(df_5)}  3min: {len(df_3) if df_3 is not None else 0}  "
           f"1min: {len(df_1) if df_1 is not None else 0}")
 
-    # ── AMD structure on 15min ────────────────────────────────────────────────
-    # 15min is where you read the consolidation range, FBOS, and POI formation.
-    # Entry execution happens on 5min when price retaps the 15min POI zone.
-    print("  Detecting signals on 15min...")
+    # ── AMD context on 15min ─────────────────────────────────────────────────
+    # 15min: read the AMD cycle, identify FBOS/RBOS, build IDM POI TARGET levels.
+    # 15min POIs are NOT entries — they are the distribution targets for 3min SMTs.
+    print("  Detecting 15min AMD structure...")
     df_15 = load(ASSET, "15min")
     df_15 = find_rbos(df_15)
     df_15 = find_swings(df_15)
@@ -161,11 +156,39 @@ def run_backtest() -> dict:
     n_rbos_15 = int(df_15['rbos_bullish'].sum() + df_15['rbos_bearish'].sum())
     print(f"  15min FBOS: {n_fbos_15}   RBOS: {n_rbos_15}")
 
-    # DIV still on 5min (ES comparison needs same resolution)
+    # Build IDM POI levels from 15min — these are TARGETS, not entry zones
+    idm_targets = []   # {"level": float, "direction": "long"/"short", "formed": ts}
+    last_fbos_bull_15 = None
+    last_fbos_bear_15 = None
+
+    for ts, row in df_15.iterrows():
+        if row["fbos_bullish"]: last_fbos_bull_15 = (ts, row.copy())
+        if row["fbos_bearish"]: last_fbos_bear_15 = (ts, row.copy())
+
+        if row["rbos_bullish"] and last_fbos_bull_15 is not None:
+            _, fr = last_fbos_bull_15
+            level = max(fr["open"], fr["close"])  # top of 15min FBOS body = IDM target
+            if (max(fr["open"], fr["close"]) - min(fr["open"], fr["close"])) >= MIN_POI_W:
+                idm_targets.append({"formed": ts, "direction": "long", "level": level})
+            last_fbos_bull_15 = None
+
+        if row["rbos_bearish"] and last_fbos_bear_15 is not None:
+            _, fr = last_fbos_bear_15
+            level = min(fr["open"], fr["close"])  # bottom of 15min FBOS body = IDM target
+            if (max(fr["open"], fr["close"]) - min(fr["open"], fr["close"])) >= MIN_POI_W:
+                idm_targets.append({"formed": ts, "direction": "short", "level": level})
+            last_fbos_bear_15 = None
+
+    print(f"  15min IDM target levels: {len(idm_targets)}")
+
+    # DIV on 5min (ES comparison)
     df_5 = find_div(df_5, df_5_es)
     df_5 = find_swings(df_5)
 
-    # ── SMT detection on 3min ─────────────────────────────────────────────────
+    # ── 3min SMT detection — primary entries ─────────────────────────────────
+    # SMT = 2-candle orderblock on 3min drawn at a swing extreme.
+    # Entry: CE of the 2-candle range. Stop: beyond far edge.
+    # Valid only when there is a higher IDM POI target above (long) or below (short).
     smt_list = []
     if df_3 is not None:
         df_3 = find_smt(df_3)
@@ -185,7 +208,7 @@ def run_backtest() -> dict:
                     "active": True
                 })
     else:
-        print("  3min data : not available — SMT entries skipped")
+        print("  3min data : not available")
 
     # ── trend bias: 1H primary, 4H for high-conviction sizing ────────────────
     bias_4h    = get_trend_bias(df_4h)
@@ -193,9 +216,7 @@ def run_backtest() -> dict:
     bias_4h_5m = align_trend_to(bias_4h, df_5.index)
     bias_1h_5m = align_trend_to(bias_1h, df_5.index)
 
-    # 1H drives direction; neutral only when 1H is unclear
-    primary_bias = bias_1h_5m   # 1=bull, -1=bear, 0=neutral
-    # high_conviction when 4H and 1H both agree
+    primary_bias = bias_1h_5m
     hc_bias = pd.Series(
         np.where((bias_4h_5m == 1)  & (bias_1h_5m == 1),   1,
         np.where((bias_4h_5m == -1) & (bias_1h_5m == -1), -1, 0)),
@@ -207,44 +228,11 @@ def run_backtest() -> dict:
     print(f"  High-conviction (4H+1H) — Bull: {int((hc_bias==1).sum())}  "
           f"Bear: {int((hc_bias==-1).sum())}")
 
-    # ── build IDM POI list from 15min FBOS/RBOS ──────────────────────────────
-    # Consolidation range breaks on 15min → FBOS body = IDM POI.
-    # Entry triggered when 5min price retaps back into the 15min POI zone.
-    poi_list       = []
-    last_fbos_bull = None
-    last_fbos_bear = None
-
-    for ts, row in df_15.iterrows():
-        if row["fbos_bullish"]:
-            last_fbos_bull = (ts, row.copy())
-        if row["fbos_bearish"]:
-            last_fbos_bear = (ts, row.copy())
-
-        if row["rbos_bullish"] and last_fbos_bull is not None:
-            _, fr = last_fbos_bull
-            poi_h = max(fr["open"], fr["close"])
-            poi_l = min(fr["open"], fr["close"])
-            if poi_h - poi_l >= MIN_POI_W:
-                poi_list.append({"formed": ts, "direction": "long",
-                                  "poi_high": poi_h, "poi_low": poi_l,
-                                  "active": True})
-            last_fbos_bull = None
-
-        if row["rbos_bearish"] and last_fbos_bear is not None:
-            _, fr = last_fbos_bear
-            poi_h = max(fr["open"], fr["close"])
-            poi_l = min(fr["open"], fr["close"])
-            if poi_h - poi_l >= MIN_POI_W:
-                poi_list.append({"formed": ts, "direction": "short",
-                                  "poi_high": poi_h, "poi_low": poi_l,
-                                  "active": True})
-            last_fbos_bear = None
-
-    print(f"  15min IDM POIs (after RBOS): {len(poi_list)}")
-
-    # Swing levels for TP targets — use 15min swings (cleaner structure)
-    sh_5 = df_15[df_15["swing_high"]][["high"]]
-    sl_5 = df_15[df_15["swing_low"]][["low"]]
+    # TP: 15min IDM level OR 1H swing at 50pt+ — whichever is closer but still ≥50pts
+    df_1h_sw = find_swings(df_1h.copy())
+    sh_tp = df_1h_sw[df_1h_sw["swing_high"]][["high"]]
+    sl_tp = df_1h_sw[df_1h_sw["swing_low"]][["low"]]
+    MIN_TARGET_PTS = 50.0
 
     # ── simulate on 5min bars ─────────────────────────────────────────────────
     engine = PropFirmEngine()
@@ -272,156 +260,7 @@ def run_backtest() -> dict:
         div_bull = bool(df_5.loc[ts, "div_bullish"])
         div_bear = bool(df_5.loc[ts, "div_bearish"])
 
-        for poi in poi_list:
-            if not poi["active"] or ts <= poi["formed"]:
-                continue
-
-            poi_h = poi["poi_high"]
-            poi_l = poi["poi_low"]
-            poi_w = poi_h - poi_l   # POI width
-
-            # Expire POI only when close is >50% of POI width past the far edge
-            # (simulates waiting for a real reaction before calling it blown)
-            if poi["direction"] == "long"  and candle["close"] < poi_l - poi_w * 0.5:
-                poi["active"] = False
-                continue
-            if poi["direction"] == "short" and candle["close"] > poi_h + poi_w * 0.5:
-                poi["active"] = False
-                continue
-
-            # ── Trend filter (1H primary) ─────────────────────────────────────
-            if poi["direction"] == "long"  and trend == -1:
-                continue
-            if poi["direction"] == "short" and trend == 1:
-                continue
-
-            # ── Long setup ────────────────────────────────────────────────────
-            if poi["direction"] == "long":
-                if not (candle["low"] <= poi_h and candle["high"] >= poi_l):
-                    continue
-                if div_bear:           # ES DIV bearish = don't go long
-                    continue
-
-                stop = poi_l - 2 * TICK
-                ce   = round((poi_h + poi_l) / 2, 2)   # consequent encroachment
-
-                # OTE from 1min exhaustion candle (if data available for this window)
-                ote = None
-                if df_1 is not None:
-                    win_start = ts - pd.Timedelta("4min")
-                    bars_1m   = df_1.loc[win_start:ts] if win_start in df_1.index or ts in df_1.index else pd.DataFrame()
-                    try:
-                        bars_1m = df_1.loc[win_start:ts]
-                    except KeyError:
-                        bars_1m = pd.DataFrame()
-                    ote = _find_ote(bars_1m, "long", poi_h, poi_l)
-
-                # Priority: OTE > CE; OTE must be above stop, CE must be above stop
-                if ote is not None and ote > stop:
-                    entry       = ote
-                    entry_label = f"OTE={ote:.2f}"
-                elif ce > stop:
-                    entry       = ce
-                    entry_label = "CE"
-                else:
-                    entry       = poi_h
-                    entry_label = "POI_EDGE"
-
-                # TP = nearest swing HIGH above entry before the FBOS
-                candidates = sh_5.loc[sh_5.index < poi["formed"]]
-                candidates = candidates[candidates["high"] > entry + 8]
-                target = float(candidates["high"].iloc[-1]) if not candidates.empty \
-                         else entry + 3 * (entry - stop)
-
-                # POI blown this candle → instant stop
-                hc_trade = bool(hc != 0 and hc == (1 if poi["direction"] == "long" else -1))
-
-                if candle["close"] < poi_l:
-                    t = engine.open_trade(ASSET, "long", entry, stop, target, ts,
-                                          div_confirmed=bool(div_bull),
-                                          high_conviction=hc_trade,
-                                          entry_type="IDM_POI")
-                    if t:
-                        engine.close_trade(poi_l - TICK, ts)
-                        poi["active"] = False
-                        print(f"  [{ts}] LONG  BLOWN  {entry_label}  entry={t.entry_price:.2f}  "
-                              f"exit={poi_l-TICK:.2f}  PnL=${t.pnl:,.0f}  HC={hc_trade}")
-                    break
-
-                t = engine.open_trade(ASSET, "long", entry, stop, target, ts,
-                                      div_confirmed=bool(div_bull),
-                                      high_conviction=hc_trade,
-                                      entry_type="IDM_POI")
-                if t:
-                    poi["active"] = False
-                    print(f"  [{ts}] LONG   {entry_label}  entry={t.entry_price:.2f}  "
-                          f"sl={stop:.2f}  tp={target:.2f}  "
-                          f"RR={t.rr}  HC={hc_trade}  DIV={bool(div_bull)}")
-                    break
-
-            # ── Short setup ───────────────────────────────────────────────────
-            elif poi["direction"] == "short":
-                if not (candle["high"] >= poi_l and candle["low"] <= poi_h):
-                    continue
-                if div_bull:           # ES DIV bullish = don't go short
-                    continue
-
-                stop = poi_h + 2 * TICK
-                ce   = round((poi_h + poi_l) / 2, 2)
-
-                ote = None
-                if df_1 is not None:
-                    win_start = ts - pd.Timedelta("4min")
-                    try:
-                        bars_1m = df_1.loc[win_start:ts]
-                    except KeyError:
-                        bars_1m = pd.DataFrame()
-                    ote = _find_ote(bars_1m, "short", poi_h, poi_l)
-
-                if ote is not None and ote < stop:
-                    entry       = ote
-                    entry_label = f"OTE={ote:.2f}"
-                elif ce < stop:
-                    entry       = ce
-                    entry_label = "CE"
-                else:
-                    entry       = poi_l
-                    entry_label = "POI_EDGE"
-
-                candidates = sl_5.loc[sl_5.index < poi["formed"]]
-                candidates = candidates[candidates["low"] < entry - 8]
-                target = float(candidates["low"].iloc[-1]) if not candidates.empty \
-                         else entry - 3 * (stop - entry)
-
-                hc_trade = bool(hc != 0 and hc == -1)
-
-                if candle["close"] > poi_h:
-                    t = engine.open_trade(ASSET, "short", entry, stop, target, ts,
-                                          div_confirmed=bool(div_bear),
-                                          high_conviction=hc_trade,
-                                          entry_type="IDM_POI")
-                    if t:
-                        engine.close_trade(poi_h + TICK, ts)
-                        poi["active"] = False
-                        print(f"  [{ts}] SHORT BLOWN  {entry_label}  entry={t.entry_price:.2f}  "
-                              f"exit={poi_h+TICK:.2f}  PnL=${t.pnl:,.0f}  HC={hc_trade}")
-                    break
-
-                t = engine.open_trade(ASSET, "short", entry, stop, target, ts,
-                                      div_confirmed=bool(div_bear),
-                                      high_conviction=hc_trade,
-                                      entry_type="IDM_POI")
-                if t:
-                    poi["active"] = False
-                    print(f"  [{ts}] SHORT  {entry_label}  entry={t.entry_price:.2f}  "
-                          f"sl={stop:.2f}  tp={target:.2f}  "
-                          f"RR={t.rr}  HC={hc_trade}  DIV={bool(div_bear)}")
-                    break
-
-        # ── SMT entries (3min) — only if no trade opened from POI ─────────────
-        if engine._open_trade is not None:
-            continue
-
+        # ── SMT entries (3min 2-candle OB) — primary and only entry mechanism ─
         for smt in smt_list:
             if not smt["active"] or ts <= smt["formed"]:
                 continue
@@ -430,66 +269,94 @@ def run_backtest() -> dict:
             rng_l = smt["range_low"]
             rng_w = rng_h - rng_l
 
-            # Expire SMT if price closes through the range far side
-            if smt["direction"] == "long"  and candle["close"] < rng_l - 2 * TICK:
+            # Expire SMT when close > 50% of range past far edge
+            if smt["direction"] == "long"  and candle["close"] < rng_l - rng_w * 0.5:
                 smt["active"] = False
                 continue
-            if smt["direction"] == "short" and candle["close"] > rng_h + 2 * TICK:
+            if smt["direction"] == "short" and candle["close"] > rng_h + rng_w * 0.5:
                 smt["active"] = False
                 continue
 
-            # Trend filter
+            # Trend filter (1H primary)
             if smt["direction"] == "long"  and trend == -1:
                 continue
             if smt["direction"] == "short" and trend == 1:
                 continue
 
+            # CE entry = 50% midpoint of SMT 2-candle range
+            ce   = round((rng_h + rng_l) / 2, 2)
+
             if smt["direction"] == "long":
+                # Price must touch or overlap the SMT zone
                 if not (candle["low"] <= rng_h and candle["high"] >= rng_l):
                     continue
-                if div_bear:
+                if div_bear:            # ES DIV bearish → skip long
                     continue
 
-                entry  = rng_h                   # near edge of SMT range
-                stop   = rng_l - 2 * TICK        # far edge of range + 2 ticks
+                entry = ce
+                stop  = rng_l - 2 * TICK
 
-                candidates = sh_5.loc[sh_5.index < smt["formed"]]
-                candidates = candidates[candidates["high"] > entry + 8]
-                target = float(candidates["high"].iloc[-1]) if not candidates.empty \
-                         else entry + 3 * (entry - stop)
+                # TP: nearest IDM target (15min) ≥50pts above — then 1H swing fallback
+                target = None
+                for idt in idm_targets:
+                    if (idt["formed"] < ts and
+                            idt["direction"] == "long" and
+                            idt["level"] > entry + MIN_TARGET_PTS):
+                        if target is None or idt["level"] < target:
+                            target = idt["level"]
 
+                if target is None:
+                    cands = sh_tp[sh_tp.index < ts]
+                    cands = cands[cands["high"] > entry + MIN_TARGET_PTS]
+                    if cands.empty:
+                        continue
+                    target = float(cands["high"].iloc[-1])
+
+                hc_trade = bool(hc == 1)
                 t = engine.open_trade(ASSET, "long", entry, stop, target, ts,
                                       div_confirmed=bool(div_bull),
+                                      high_conviction=hc_trade,
                                       entry_type="SMT")
                 if t:
                     smt["active"] = False
-                    print(f"  [{ts}] SMT LONG   entry={t.entry_price:.2f}  "
-                          f"sl={stop:.2f}  tp={target:.2f}  "
-                          f"RR={t.rr}  range_w={rng_w:.1f}pts")
+                    print(f"  [{ts}] SMT LONG   CE={ce:.2f}  sl={stop:.2f}  "
+                          f"tp={target:.2f}  RR={t.rr}  w={rng_w:.1f}pts  HC={hc_trade}")
                     break
 
             elif smt["direction"] == "short":
                 if not (candle["high"] >= rng_l and candle["low"] <= rng_h):
                     continue
-                if div_bull:
+                if div_bull:            # ES DIV bullish → skip short
                     continue
 
-                entry  = rng_l                   # near edge of SMT range
-                stop   = rng_h + 2 * TICK        # far edge of range + 2 ticks
+                entry = ce
+                stop  = rng_h + 2 * TICK
 
-                candidates = sl_5.loc[sl_5.index < smt["formed"]]
-                candidates = candidates[candidates["low"] < entry - 8]
-                target = float(candidates["low"].iloc[-1]) if not candidates.empty \
-                         else entry - 3 * (stop - entry)
+                # TP: nearest IDM target (15min) ≥50pts below — then 1H swing fallback
+                target = None
+                for idt in idm_targets:
+                    if (idt["formed"] < ts and
+                            idt["direction"] == "short" and
+                            idt["level"] < entry - MIN_TARGET_PTS):
+                        if target is None or idt["level"] > target:
+                            target = idt["level"]
 
+                if target is None:
+                    cands = sl_tp[sl_tp.index < ts]
+                    cands = cands[cands["low"] < entry - MIN_TARGET_PTS]
+                    if cands.empty:
+                        continue
+                    target = float(cands["low"].iloc[-1])
+
+                hc_trade = bool(hc == -1)
                 t = engine.open_trade(ASSET, "short", entry, stop, target, ts,
                                       div_confirmed=bool(div_bear),
+                                      high_conviction=hc_trade,
                                       entry_type="SMT")
                 if t:
                     smt["active"] = False
-                    print(f"  [{ts}] SMT SHORT  entry={t.entry_price:.2f}  "
-                          f"sl={stop:.2f}  tp={target:.2f}  "
-                          f"RR={t.rr}  range_w={rng_w:.1f}pts")
+                    print(f"  [{ts}] SMT SHORT  CE={ce:.2f}  sl={stop:.2f}  "
+                          f"tp={target:.2f}  RR={t.rr}  w={rng_w:.1f}pts  HC={hc_trade}")
                     break
 
     # Close any open trade at end of data
@@ -501,17 +368,13 @@ def run_backtest() -> dict:
     r = engine.result.summarise().to_dict()
     phase = r.get("prop_phase", "eval")
 
-    # Entry-type breakdown
     all_trades = r.get("trades", [])
-    poi_trades  = [t for t in all_trades if t.get("entry_type") == "IDM_POI"]
-    smt_trades  = [t for t in all_trades if t.get("entry_type") == "SMT"]
 
     print(f"\n{'─'*58}")
     print(f"  Prop firm : {phase.upper()}"
           + (f"  ({r['prop_fail_reason']})" if r.get('prop_fail_reason') else ""))
     print(f"  Trades    : {r['total_trades']}  "
           f"(W: {r['wins']}  L: {r['losses']})")
-    print(f"  IDM POI   : {len(poi_trades)}  |  SMT: {len(smt_trades)}")
     print(f"  Win rate  : {r['win_rate']}%")
     print(f"  Avg R:R   : {r['avg_rr']}R")
     print(f"  P-factor  : {r['profit_factor']}")
