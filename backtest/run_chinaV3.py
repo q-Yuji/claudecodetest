@@ -149,15 +149,21 @@ def run_backtest() -> dict:
           f"5min: {len(df_5)}  3min: {len(df_3) if df_3 is not None else 0}  "
           f"1min: {len(df_1) if df_1 is not None else 0}")
 
-    # ── signal detection on 5min ──────────────────────────────────────────────
-    print("  Detecting signals...")
-    df_5 = find_rbos(df_5)            # also runs find_fbos internally
+    # ── AMD structure on 15min ────────────────────────────────────────────────
+    # 15min is where you read the consolidation range, FBOS, and POI formation.
+    # Entry execution happens on 5min when price retaps the 15min POI zone.
+    print("  Detecting signals on 15min...")
+    df_15 = load(ASSET, "15min")
+    df_15 = find_rbos(df_15)
+    df_15 = find_swings(df_15)
+
+    n_fbos_15 = int(df_15['fbos_bullish'].sum() + df_15['fbos_bearish'].sum())
+    n_rbos_15 = int(df_15['rbos_bullish'].sum() + df_15['rbos_bearish'].sum())
+    print(f"  15min FBOS: {n_fbos_15}   RBOS: {n_rbos_15}")
+
+    # DIV still on 5min (ES comparison needs same resolution)
     df_5 = find_div(df_5, df_5_es)
     df_5 = find_swings(df_5)
-
-    n_fbos = int(df_5['fbos_bullish'].sum() + df_5['fbos_bearish'].sum())
-    n_rbos = int(df_5['rbos_bullish'].sum() + df_5['rbos_bearish'].sum())
-    print(f"  5min FBOS: {n_fbos}   RBOS: {n_rbos}")
 
     # ── SMT detection on 3min ─────────────────────────────────────────────────
     smt_list = []
@@ -201,14 +207,14 @@ def run_backtest() -> dict:
     print(f"  High-conviction (4H+1H) — Bull: {int((hc_bias==1).sum())}  "
           f"Bear: {int((hc_bias==-1).sum())}")
 
-    # ── build IDM POI list ────────────────────────────────────────────────────
-    # IDM POI = body of the FBOS candle, valid only after the RBOS confirms.
-    # This is the manipulation trap zone. Entry when price retests it.
+    # ── build IDM POI list from 15min FBOS/RBOS ──────────────────────────────
+    # Consolidation range breaks on 15min → FBOS body = IDM POI.
+    # Entry triggered when 5min price retaps back into the 15min POI zone.
     poi_list       = []
     last_fbos_bull = None
     last_fbos_bear = None
 
-    for ts, row in df_5.iterrows():
+    for ts, row in df_15.iterrows():
         if row["fbos_bullish"]:
             last_fbos_bull = (ts, row.copy())
         if row["fbos_bearish"]:
@@ -221,7 +227,7 @@ def run_backtest() -> dict:
             if poi_h - poi_l >= MIN_POI_W:
                 poi_list.append({"formed": ts, "direction": "long",
                                   "poi_high": poi_h, "poi_low": poi_l,
-                                  "active": True, "session": ts.date()})
+                                  "active": True})
             last_fbos_bull = None
 
         if row["rbos_bearish"] and last_fbos_bear is not None:
@@ -231,14 +237,14 @@ def run_backtest() -> dict:
             if poi_h - poi_l >= MIN_POI_W:
                 poi_list.append({"formed": ts, "direction": "short",
                                   "poi_high": poi_h, "poi_low": poi_l,
-                                  "active": True, "session": ts.date()})
+                                  "active": True})
             last_fbos_bear = None
 
-    print(f"  IDM POIs (after RBOS): {len(poi_list)}")
+    print(f"  15min IDM POIs (after RBOS): {len(poi_list)}")
 
-    # Swing levels for TP targets
-    sh_5 = df_5[df_5["swing_high"]][["high"]]
-    sl_5 = df_5[df_5["swing_low"]][["low"]]
+    # Swing levels for TP targets — use 15min swings (cleaner structure)
+    sh_5 = df_15[df_15["swing_high"]][["high"]]
+    sl_5 = df_15[df_15["swing_low"]][["low"]]
 
     # ── simulate on 5min bars ─────────────────────────────────────────────────
     engine = PropFirmEngine()
@@ -252,6 +258,13 @@ def run_backtest() -> dict:
         engine.check_exit(candle, ts)
 
         if engine._open_trade is not None:
+            continue
+
+        # ── Session filter: Asia (00:00–08:00 UTC) + NY AM (13:30–18:00 UTC) ──
+        h = ts.hour
+        in_asia = 0 <= h < 8
+        in_nyam = 13 <= h < 18
+        if not (in_asia or in_nyam):
             continue
 
         trend    = primary_bias.get(ts, 0)
