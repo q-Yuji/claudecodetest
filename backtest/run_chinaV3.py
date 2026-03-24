@@ -283,16 +283,17 @@ def run_backtest() -> dict:
             if smt["direction"] == "short" and trend == 1:
                 continue
 
-            # CE entry = 50% midpoint of SMT 2-candle range
-            ce   = round((rng_h + rng_l) / 2, 2)
+            # CE = 50% midpoint (reference only — entry triggers on first zone touch)
+            ce = round((rng_h + rng_l) / 2, 2)
 
             if smt["direction"] == "long":
-                # Price must touch or overlap the SMT zone
+                # Trigger: any candle that touches/overlaps the SMT zone
                 if not (candle["low"] <= rng_h and candle["high"] >= rng_l):
                     continue
                 if div_bear:            # ES DIV bearish → skip long
                     continue
 
+                # Entry at CE — triggers on any zone touch, not requiring exact CE candle
                 entry = ce
                 stop  = rng_l - 2 * TICK
 
@@ -319,8 +320,9 @@ def run_backtest() -> dict:
                                       entry_type="SMT")
                 if t:
                     smt["active"] = False
-                    print(f"  [{ts}] SMT LONG   CE={ce:.2f}  sl={stop:.2f}  "
-                          f"tp={target:.2f}  RR={t.rr}  w={rng_w:.1f}pts  HC={hc_trade}")
+                    print(f"  [{ts}] SMT LONG   entry={t.entry_price:.2f} (CE={ce:.2f})  "
+                          f"sl={stop:.2f}  tp={target:.2f}  RR={t.rr}  "
+                          f"w={rng_w:.1f}pts  HC={hc_trade}")
                     break
 
             elif smt["direction"] == "short":
@@ -329,6 +331,7 @@ def run_backtest() -> dict:
                 if div_bull:            # ES DIV bullish → skip short
                     continue
 
+                # Entry at CE — triggers on any zone touch, not requiring exact CE candle
                 entry = ce
                 stop  = rng_h + 2 * TICK
 
@@ -355,8 +358,9 @@ def run_backtest() -> dict:
                                       entry_type="SMT")
                 if t:
                     smt["active"] = False
-                    print(f"  [{ts}] SMT SHORT  CE={ce:.2f}  sl={stop:.2f}  "
-                          f"tp={target:.2f}  RR={t.rr}  w={rng_w:.1f}pts  HC={hc_trade}")
+                    print(f"  [{ts}] SMT SHORT  entry={t.entry_price:.2f} (CE={ce:.2f})  "
+                          f"sl={stop:.2f}  tp={target:.2f}  RR={t.rr}  "
+                          f"w={rng_w:.1f}pts  HC={hc_trade}")
                     break
 
     # Close any open trade at end of data
