@@ -1,0 +1,19 @@
+# My real trades — fill this in to calibrate the backtest
+#
+# Fields:
+#   date        — YYYY-MM-DD
+#   time_utc    — HH:MM  (UTC time of entry)
+#   asset       — NQ
+#   direction   — long / short
+#   entry       — entry price
+#   stop        — stop loss price
+#   target      — take profit price
+#   exit_price  — actual exit price (fill in after close)
+#   outcome     — win / loss / be
+#   session     — asia / nyam
+#   setup_notes — brief description of what you saw (optional)
+#
+date,time_utc,asset,direction,entry,stop,target,exit_price,outcome,session,setup_notes
+# Example rows (delete these and replace with your real trades):
+# 2026-01-15,04:30,NQ,short,25620,25628,25562,25562,win,asia,SMT at swing high after FBOS sweep
+# 2026-01-16,14:00,NQ,long,25770,25762,25891,25762,loss,nyam,SMT long retap failed
