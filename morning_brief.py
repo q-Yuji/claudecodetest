@@ -215,7 +215,7 @@ def print_brief(ctx: dict, calendar: list, news: list, ibkr: dict, gex: dict):
         print(f"    [{gex['error']}]")
     else:
         for sym, path in gex.items():
-            print(f"    {sym}: {'saved → ' + path if path else 'not captured'}")
+            print(f"    {sym}: {'saved -> ' + path if path else 'not captured'}")
 
     print(f"\n{'='*60}\n")
 
