@@ -78,7 +78,7 @@ def screenshot_gex(symbol: str = "SPY") -> Path | None:
     img_bytes = base64.b64decode(result["result"]["data"])
     out_path  = RESULTS_DIR / f"gex_{symbol.lower()}.png"
     out_path.write_bytes(img_bytes)
-    print(f"  GEX screenshot saved → {out_path.name}")
+    print(f"  GEX screenshot saved -> {out_path.name}")
     return out_path
 
 
