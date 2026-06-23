@@ -5,10 +5,10 @@ One-time setup:
   1. Download the gateway from:
      https://www.interactivebrokers.com/en/trading/ibkr-api-gl.php
      → "Client Portal API Gateway" → clientportal.gw.zip
-  2. Unzip to C:\ibkr-gateway\
+  2. Unzip to C:/ibkr-gateway/
   3. Before each trading session, run:
-       cd C:\ibkr-gateway
-       bin\run.bat root\conf.yaml
+       cd C:/ibkr-gateway
+       bin/run.bat root/conf.yaml
   4. Open https://localhost:5000 in Chrome and log in with your IBKR credentials
   5. Keep that terminal open while trading
 

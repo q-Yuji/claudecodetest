@@ -2,7 +2,7 @@
 GEX Suite screenshot reader — captures the heatmap via Chrome DevTools Protocol.
 
 Setup (before each session):
-  1. Run scripts\launch_trading_chrome.bat  (opens Chrome on debug port 9222)
+  1. Run scripts/launch_trading_chrome.bat  (opens Chrome on debug port 9222)
   2. Log in to GEX Suite in that Chrome window
   3. Navigate to the heatmap for the symbol you want (SPY / SPX / QQQ)
   4. Call screenshot_gex("SPY") from this module, or run:
