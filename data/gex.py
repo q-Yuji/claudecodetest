@@ -2,7 +2,7 @@
 GEX Suite screenshot reader — captures the heatmap via Chrome DevTools Protocol.
 
 Setup (before each session):
-  1. Run scripts\launch_chrome_gex.bat  (opens Chrome with debug port 9223)
+  1. Run scripts\launch_trading_chrome.bat  (opens Chrome on debug port 9222)
   2. Log in to GEX Suite in that Chrome window
   3. Navigate to the heatmap for the symbol you want (SPY / SPX / QQQ)
   4. Call screenshot_gex("SPY") from this module, or run:
@@ -18,7 +18,7 @@ from pathlib import Path
 
 import requests
 
-CDP_URL = "http://localhost:9223"
+CDP_URL = "http://localhost:9222"  # same Chrome instance as TradingView
 RESULTS_DIR = Path(__file__).parent.parent / "results"
 RESULTS_DIR.mkdir(exist_ok=True)
 
@@ -50,8 +50,8 @@ def screenshot_gex(symbol: str = "SPY") -> Path | None:
     if tab is None:
         all_tabs = _get_tabs()
         if not all_tabs:
-            print("[!] Chrome not running with debug port 9223.")
-            print("    Run: scripts\\launch_chrome_gex.bat")
+            print("[!] Chrome not running with debug port 9222.")
+            print("    Run: scripts\\launch_trading_chrome.bat")
         else:
             print("[!] GEX Suite not open in debug Chrome.")
             print(f"    Open tabs: {[t.get('url','?')[:60] for t in all_tabs]}")
@@ -90,4 +90,4 @@ if __name__ == "__main__":
         if path:
             print(f"Screenshot saved: {path}")
     else:
-        print("No GEX Suite tab found — run scripts\\launch_chrome_gex.bat first.")
+        print("No GEX Suite tab found — run scripts\\launch_trading_chrome.bat first.")
