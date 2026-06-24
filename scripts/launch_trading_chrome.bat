@@ -1,13 +1,15 @@
 @echo off
-REM Launch Chrome for a trading session:
-REM   - TradingView (tab 1) on debug port 9222  ← MCP connects here
-REM   - GEX Suite   (tab 2) on the same port    ← gex.py reads this tab
+REM Launch everything needed for a trading session:
+REM   1. IBKR Client Portal Gateway  (localhost:5000)
+REM   2. Chrome with TradingView + GEX Suite on debug port 9222
 REM
 REM Usage: scripts\launch_trading_chrome.bat
-REM Run this once at the start of each session, then log in to both sites.
+REM After it opens: log in to IBKR at https://localhost:5000, then log in to TV + GEX Suite.
 
 set PORT=9222
 set PROFILE=%USERPROFILE%\chrome-trading
+set JAVA_HOME=C:\java21\jdk-21.0.11+10-jre
+set PATH=%JAVA_HOME%\bin;%PATH%
 
 set "CHROME="
 if exist "%PROGRAMFILES%\Google\Chrome\Application\chrome.exe"       set "CHROME=%PROGRAMFILES%\Google\Chrome\Application\chrome.exe"
@@ -20,10 +22,15 @@ if "%CHROME%"=="" (
     exit /b 1
 )
 
-echo Starting Chrome on debug port %PORT%...
-echo Opening TradingView + GEX Suite. Log in to both sites.
+echo [1/2] Starting IBKR Client Portal Gateway on localhost:5000...
+start "IBKR Gateway" /D "C:\ibkr-gateway" cmd /c "bin\run.bat root\conf.yaml"
+echo     Open https://localhost:5000 in Chrome and log in with your IBKR credentials.
 echo.
-start "" "%CHROME%" --remote-debugging-port=%PORT% --user-data-dir="%PROFILE%" --no-first-run --new-window "https://www.tradingview.com/chart/" "https://gexsuite.com"
 
-echo Done. Chrome is open. Log in to TradingView and GEX Suite.
-echo Claude can now see both via the MCP and gex.py.
+echo [2/2] Starting Chrome on debug port %PORT%...
+echo     Log in to TradingView and GEX Suite when it opens.
+echo.
+start "" "%CHROME%" --remote-debugging-port=%PORT% --remote-allow-origins=http://localhost:%PORT% --user-data-dir="%PROFILE%" --no-first-run --new-window "https://localhost:5000" "https://www.tradingview.com/chart/" "https://gexsuite.com"
+
+echo Done. Log in to IBKR (first tab), then TradingView and GEX Suite.
+echo Run python morning_brief.py when ready.
