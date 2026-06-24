@@ -5,18 +5,23 @@ Run before market open:
   python morning_brief.py
 
 Pulls overnight prices, sector ETFs, economic calendar, news, GEX screenshot,
-and IBKR positions -- then renders a dashboard HTML and opens it in the browser.
+IBKR positions, and 2-week AMD backtest review -- renders a tabbed HTML
+dashboard (Morning Brief | Backtesting) and opens it in the browser.
 """
 
 import base64
 import json
+import warnings
 import webbrowser
 import xml.etree.ElementTree as ET
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, date
 from pathlib import Path
 
 import yfinance as yf
 import requests
+
+warnings.filterwarnings("ignore")
 
 RESULTS_DIR = Path(__file__).parent / "results"
 RESULTS_DIR.mkdir(exist_ok=True)
@@ -180,6 +185,26 @@ def capture_gex() -> dict:
         return {"error": str(e)}
 
 
+# -- Backtest (AMD 2-week review) ----------------------------------------------
+
+def _get_backtest_days() -> list:
+    try:
+        from backtest.amd_session_review import (
+            fetch_data, fetch_calendar_week, analyse_day
+        )
+        data = fetch_data()
+        cal  = fetch_calendar_week()
+        df_ref = data["NQ"]["15m"]
+        if df_ref.empty:
+            return []
+        all_dates    = sorted(set(df_ref.index.date))
+        trading_days = [d for d in all_dates if d.weekday() < 5][-10:]
+        return [analyse_day(td, data, cal) for td in trading_days]
+    except Exception as e:
+        print(f"  [backtest] {e}")
+        return []
+
+
 # -- HTML dashboard ------------------------------------------------------------
 
 _HTML = r"""<!DOCTYPE html>
@@ -200,13 +225,21 @@ _HTML = r"""<!DOCTYPE html>
 body{background:var(--bg);color:var(--text);font-family:'SF Mono','Fira Code',Consolas,monospace;font-size:13px;min-height:100vh;padding:20px 24px 40px}
 
 /* HEADER */
-.header{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:24px;padding-bottom:16px;border-bottom:1px solid var(--border)}
-.header-left{}
+.header{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:0;padding-bottom:16px;border-bottom:1px solid var(--border)}
 .brand{font-size:10px;font-weight:700;letter-spacing:.25em;color:var(--accent);text-transform:uppercase;margin-bottom:4px}
 .header-date{font-size:18px;font-weight:700;color:var(--text)}
 .live{display:flex;align-items:center;gap:6px;font-size:10px;color:var(--green);letter-spacing:.1em}
 .live-dot{width:6px;height:6px;border-radius:50%;background:var(--green);animation:blink 2s ease-in-out infinite}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+
+/* TABS */
+.tab-nav{display:flex;gap:2px;margin-bottom:20px;border-bottom:1px solid var(--border);padding-top:0}
+.tab-btn{background:none;border:none;border-bottom:2px solid transparent;color:var(--muted);font-family:inherit;font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;padding:12px 18px;cursor:pointer;margin-bottom:-1px;transition:color .15s,border-color .15s}
+.tab-btn:hover{color:var(--text)}
+.tab-btn.active{color:var(--accent);border-bottom-color:var(--accent)}
+.tab-count{font-size:9px;background:var(--accent-dim);color:var(--accent);padding:1px 6px;border-radius:10px;margin-left:6px;font-weight:700}
+.tab-panel{display:none}
+.tab-panel.active{display:block}
 
 /* PRICE CARDS */
 .price-row{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:10px}
@@ -251,10 +284,9 @@ body{background:var(--bg);color:var(--text);font-family:'SF Mono','Fira Code',Co
 .empty-msg{color:var(--muted);font-size:11px;padding:10px 0;text-align:center;font-style:italic}
 
 /* NEWS */
-.news-item{display:flex;gap:10px;padding:9px 0;border-bottom:1px solid var(--subtle);align-items:flex-start;cursor:default}
+.news-item{display:flex;gap:10px;padding:9px 0;border-bottom:1px solid var(--subtle);align-items:flex-start}
 .news-item:last-child{border-bottom:none}
 .news-bar{width:2px;min-height:30px;background:var(--accent);border-radius:2px;flex-shrink:0;opacity:.4}
-.news-content{}
 .news-title{font-size:12px;color:var(--text);line-height:1.5;margin-bottom:2px}
 .news-date{font-size:10px;color:var(--muted)}
 
@@ -274,28 +306,69 @@ body{background:var(--bg);color:var(--text);font-family:'SF Mono','Fira Code',Co
 .pos-qty{color:var(--muted)}
 .pnl.pos{color:var(--green)}.pnl.neg{color:var(--red)}.pnl.flat{color:var(--muted)}
 
-/* GEX */
-.gex-img{width:100%;border-radius:6px;display:block}
-
-/* DIVIDER */
-.section-gap{height:12px}
+/* BACKTEST */
+.bt-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px}
+.bt-stat{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 14px}
+.bt-stat-label{font-size:9px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin-bottom:4px}
+.bt-stat-val{font-size:20px;font-weight:700;color:var(--text)}
+.bt-day{background:var(--card);border:1px solid var(--border);border-radius:10px;margin-bottom:12px;overflow:hidden}
+.bt-day-head{padding:10px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.01)}
+.bt-date{font-size:13px;font-weight:700;color:var(--text)}
+.bias-chip{font-size:9px;font-weight:700;letter-spacing:.1em;padding:2px 7px;border-radius:4px;text-transform:uppercase}
+.bias-chip.bullish{background:var(--green-dim);color:var(--green)}
+.bias-chip.bearish{background:var(--red-dim);color:var(--red)}
+.bias-chip.unknown{background:rgba(74,85,104,.2);color:var(--muted)}
+.bt-body{display:grid;grid-template-columns:200px 1fr}
+.bt-sessions{padding:12px 16px;border-right:1px solid var(--border)}
+.bt-sess-label{font-size:9px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin-bottom:5px;margin-top:10px}
+.bt-sess-label:first-child{margin-top:0}
+.bt-hl-row{display:flex;justify-content:space-between;margin-bottom:2px}
+.hl-k{color:var(--muted);font-size:11px}.hl-v{font-size:11px;color:var(--text)}
+.bt-right{padding:12px 16px}
+.bt-section{margin-bottom:10px}
+.bt-sec-title{font-size:9px;font-weight:700;letter-spacing:.12em;color:var(--muted);text-transform:uppercase;margin-bottom:5px}
+.bt-amd-note{font-size:11px;color:var(--text);padding:3px 0;border-bottom:1px solid var(--subtle)}
+.bt-amd-note:last-child{border-bottom:none}
+.bt-amd-note.muted{color:var(--muted);border-bottom:none}
+.bt-gex{font-size:11px;padding:3px 0}
+.bt-gex.muted{color:var(--muted);font-style:italic}
+.bt-tag{display:inline-block;font-size:9px;font-weight:700;padding:2px 6px;border-radius:3px;margin:1px 2px 1px 0;letter-spacing:.04em}
+.bt-tag.sweep-long{background:rgba(34,197,94,.12);color:var(--green);border:1px solid rgba(34,197,94,.2)}
+.bt-tag.sweep-short{background:rgba(239,68,68,.12);color:var(--red);border:1px solid rgba(239,68,68,.2)}
+.bt-tag.fbos{background:rgba(245,158,11,.1);color:var(--yellow);border:1px solid rgba(245,158,11,.2)}
+.bt-tag.rbos{background:rgba(79,142,247,.1);color:var(--accent);border:1px solid rgba(79,142,247,.2)}
+.bt-tag.smt{background:rgba(168,85,247,.1);color:#a855f7;border:1px solid rgba(168,85,247,.2)}
+.bt-tag.div{background:rgba(20,184,166,.1);color:#14b8a6;border:1px solid rgba(20,184,166,.2)}
+.bt-tag.news-high{background:var(--red-dim);color:var(--red);border:1px solid rgba(239,68,68,.25)}
+.bt-tag.news-med{background:var(--yellow-dim);color:var(--yellow);border:1px solid rgba(245,158,11,.2)}
+.bt-tag.big-c{background:rgba(255,255,255,.04);color:var(--text);border:1px solid var(--border)}
+.bt-empty{color:var(--muted);font-size:12px;padding:40px 0;text-align:center;font-style:italic}
 </style>
 </head>
 <body>
 <script>
-const D = __DATA__;
+const D  = __DATA__;
+const BT = __BACKTEST_DATA__;
 
 const fmt  = (n,d=2) => n==null?'--':Number(n).toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d});
 const pct  = n => n==null?'--':(n>=0?'+':'')+fmt(n)+'%';
 const money= n => n==null?'--':(n>=0?'+$':'-$')+fmt(Math.abs(n),0);
 const cls  = n => n>0?'up':n<0?'down':'flat';
 
-window.addEventListener('DOMContentLoaded',()=>{
+// Tab switching
+function switchTab(name, btn) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('tab-' + name).classList.add('active');
+}
+
+window.addEventListener('DOMContentLoaded', () => {
   document.getElementById('date').textContent = D.generated;
 
   // PRICES
   const priceGrid = document.getElementById('price-row');
-  ['NQ','ES','SPY','QQQ','VIX'].forEach(sym=>{
+  ['NQ','ES','SPY','QQQ','VIX'].forEach(sym => {
     const d = D.ctx[sym]; if(!d||d.error) return;
     const c = cls(d.chg_pct);
     priceGrid.innerHTML += `
@@ -309,7 +382,7 @@ window.addEventListener('DOMContentLoaded',()=>{
 
   // SECTORS
   const srow = document.getElementById('sector-row');
-  Object.entries(D.sectors||{}).forEach(([,s])=>{
+  Object.entries(D.sectors||{}).forEach(([,s]) => {
     if(s.error) return;
     const c = cls(s.chg_pct);
     srow.innerHTML += `<div class="sector-chip">
@@ -320,12 +393,12 @@ window.addEventListener('DOMContentLoaded',()=>{
 
   // CALENDAR
   const cal = document.getElementById('cal-body');
-  const evts = (D.calendar||[]).filter(e=>!e.error);
-  if(!evts.length){
-    cal.innerHTML='<div class="empty-msg">No high-impact USD events today</div>';
+  const evts = (D.calendar||[]).filter(e => !e.error);
+  if(!evts.length) {
+    cal.innerHTML = '<div class="empty-msg">No high-impact USD events today</div>';
   } else {
-    evts.forEach(e=>{
-      cal.innerHTML+=`<div class="cal-item">
+    evts.forEach(e => {
+      cal.innerHTML += `<div class="cal-item">
         <div class="cal-time">${e.time}</div>
         <div class="cal-badge ${e.impact==='High'?'high':'med'}">${e.impact.toUpperCase()}</div>
         <div class="cal-name">${e.title}</div>
@@ -336,14 +409,14 @@ window.addEventListener('DOMContentLoaded',()=>{
 
   // NEWS
   const news = document.getElementById('news-body');
-  (D.news||[]).forEach(n=>{
+  (D.news||[]).forEach(n => {
     if(n.error) return;
     const d = n.date ? n.date.replace(/\s*\+\d+\s*$/,'').trim() : '';
-    news.innerHTML+=`<div class="news-item">
+    news.innerHTML += `<div class="news-item">
       <div class="news-bar"></div>
       <div class="news-content">
         <div class="news-title">${n.title}</div>
-        ${d?`<div class="news-date">${d}</div>`:''}
+        ${d ? `<div class="news-date">${d}</div>` : ''}
       </div>
     </div>`;
   });
@@ -351,38 +424,127 @@ window.addEventListener('DOMContentLoaded',()=>{
   // IBKR
   const ibkr = D.ibkr||{};
   const ibkrBody = document.getElementById('ibkr-body');
-  if(ibkr.error){
-    ibkrBody.innerHTML=`<div class="empty-msg">${ibkr.error}</div>`;
+  if(ibkr.error) {
+    ibkrBody.innerHTML = `<div class="empty-msg">${ibkr.error}</div>`;
   } else {
     const pnlC = cls(ibkr.daily_pnl||0);
-    document.getElementById('ibkr-stats').innerHTML=`
+    document.getElementById('ibkr-stats').innerHTML = `
       <div class="istat"><div class="istat-label">Net Liq</div><div class="istat-val">$${fmt(ibkr.net_liq,0)}</div></div>
       <div class="istat"><div class="istat-label">Daily P&L</div><div class="istat-val ${pnlC}">${money(ibkr.daily_pnl)}</div></div>
       <div class="istat"><div class="istat-label">Buying Power</div><div class="istat-val">$${fmt(ibkr.buying_pow,0)}</div></div>
     `;
     const pos = D.positions||[];
     const posEl = document.getElementById('ibkr-pos');
-    if(!pos.length){
-      posEl.innerHTML='<div class="empty-msg">No open positions</div>';
+    if(!pos.length) {
+      posEl.innerHTML = '<div class="empty-msg">No open positions</div>';
     } else {
-      let rows = pos.map(p=>{
-        const sym  = (p.contractDesc||p.ticker||'?').slice(0,48);
-        const qty  = p.position||0;
-        const pnl  = p.unrealizedPnl||0;
-        const pc   = cls(pnl);
-        return `<tr>
-          <td class="pos-sym">${sym}</td>
-          <td class="pos-qty">${qty>0?'+':''}${qty}</td>
-          <td class="pnl ${pc}">${money(pnl)}</td>
-        </tr>`;
-      }).join('');
-      posEl.innerHTML=`<table class="pos-table">
+      posEl.innerHTML = `<table class="pos-table">
         <thead><tr><th>Contract</th><th>Qty</th><th>P&L</th></tr></thead>
-        <tbody>${rows}</tbody>
+        <tbody>${pos.map(p => {
+          const sym = (p.contractDesc||p.ticker||'?').slice(0,48);
+          const qty = p.position||0;
+          const pnl = p.unrealizedPnl||0;
+          const pc  = cls(pnl);
+          return `<tr>
+            <td class="pos-sym">${sym}</td>
+            <td class="pos-qty">${qty>0?'+':''}${qty}</td>
+            <td class="pnl ${pc}">${money(pnl)}</td>
+          </tr>`;
+        }).join('')}</tbody>
       </table>`;
     }
   }
 
+  // BACKTEST
+  const container = document.getElementById('bt-days');
+  if(!BT || !BT.length) {
+    container.innerHTML = '<div class="bt-empty">Backtest data unavailable — check console for errors.</div>';
+  } else {
+    const totalSweeps = BT.reduce((s,d) => s + d.sweeps.length, 0);
+    const totalFbos   = BT.reduce((s,d) => s + d.fbos_bull + d.fbos_bear, 0);
+    const totalSmt    = BT.reduce((s,d) => s + d.smt_bull + d.smt_bear, 0);
+    document.getElementById('bt-summary').innerHTML = `
+      <div class="bt-stat"><div class="bt-stat-label">Days Reviewed</div><div class="bt-stat-val">${BT.length}</div></div>
+      <div class="bt-stat"><div class="bt-stat-label">Session Sweeps</div><div class="bt-stat-val">${totalSweeps}</div></div>
+      <div class="bt-stat"><div class="bt-stat-label">FBOS (15m)</div><div class="bt-stat-val">${totalFbos}</div></div>
+      <div class="bt-stat"><div class="bt-stat-label">SMT Signals</div><div class="bt-stat-val">${totalSmt}</div></div>
+    `;
+    document.getElementById('bt-days-count').textContent = BT.length + 'd';
+
+    const tag = (label, cls) => `<span class="bt-tag ${cls}">${label}</span>`;
+
+    BT.forEach(d => {
+      const dt      = new Date(d.date + 'T12:00:00');
+      const dateStr = dt.toLocaleDateString('en-US', {weekday:'long', day:'numeric', month:'long', year:'numeric'});
+
+      const amdHtml = d.amd_notes && d.amd_notes.length
+        ? d.amd_notes.map(n => `<div class="bt-amd-note">${n}</div>`).join('')
+        : '<div class="bt-amd-note muted">No session sweeps detected</div>';
+
+      const sweepTags = (d.sweeps||[]).map(sw =>
+        tag(`${sw.type} ${sw.time}`, sw.direction==='long'?'sweep-long':'sweep-short')
+      ).join('');
+
+      const sigTags = [
+        d.fbos_bull ? tag(`FBOS bull x${d.fbos_bull}`, 'fbos') : '',
+        d.fbos_bear ? tag(`FBOS bear x${d.fbos_bear}`, 'fbos') : '',
+        d.rbos_bull ? tag(`RBOS bull x${d.rbos_bull}`, 'rbos') : '',
+        d.rbos_bear ? tag(`RBOS bear x${d.rbos_bear}`, 'rbos') : '',
+        d.smt_bull  ? tag(`SMT bull x${d.smt_bull}`,   'smt')  : '',
+        d.smt_bear  ? tag(`SMT bear x${d.smt_bear}`,   'smt')  : '',
+        d.div_bull  ? tag(`DIV bull x${d.div_bull}`,   'div')  : '',
+        d.div_bear  ? tag(`DIV bear x${d.div_bear}`,   'div')  : '',
+      ].join('');
+
+      const newsTags = (d.news||[]).map(n =>
+        tag(`${n.time} ${n.title}`, n.impact==='High'?'news-high':'news-med')
+      ).join('');
+
+      const bcTags = (d.big_candles||[]).map(bc =>
+        tag(`${bc.time} ${bc.direction==='bull'?'up':'dn'} ${bc.range_pts}pts (${bc.atr_mult}x ATR)`, 'big-c')
+      ).join('');
+
+      const gexHtml = d.gex_notes
+        ? `<div class="bt-gex">${d.gex_notes}</div>`
+        : '<div class="bt-gex muted">GEX levels not yet populated — run TV replay</div>';
+
+      container.innerHTML += `
+      <div class="bt-day">
+        <div class="bt-day-head">
+          <div class="bt-date">${dateStr}</div>
+          <div class="bias-chip ${d.day_bias}">${d.day_bias}</div>
+        </div>
+        <div class="bt-body">
+          <div class="bt-sessions">
+            <div class="bt-sess-label">Asia (6pm–midnight ET)</div>
+            <div class="bt-hl-row"><span class="hl-k">High</span><span class="hl-v">${d.asia_high??'--'}</span></div>
+            <div class="bt-hl-row"><span class="hl-k">Low</span><span class="hl-v">${d.asia_low??'--'}</span></div>
+            <div class="bt-sess-label">London (2am–5am ET)</div>
+            <div class="bt-hl-row"><span class="hl-k">High</span><span class="hl-v">${d.london_high??'--'}</span></div>
+            <div class="bt-hl-row"><span class="hl-k">Low</span><span class="hl-v">${d.london_low??'--'}</span></div>
+            <div class="bt-sess-label">NY Session</div>
+            <div class="bt-hl-row"><span class="hl-k">Open</span><span class="hl-v">${d.ny_open??'--'}</span></div>
+            <div class="bt-hl-row"><span class="hl-k">High</span><span class="hl-v">${d.ny_high??'--'}</span></div>
+            <div class="bt-hl-row"><span class="hl-k">Low</span><span class="hl-v">${d.ny_low??'--'}</span></div>
+            <div class="bt-hl-row"><span class="hl-k">Close</span><span class="hl-v">${d.ny_close??'--'}</span></div>
+          </div>
+          <div class="bt-right">
+            <div class="bt-section">
+              <div class="bt-sec-title">AMD / Session Sweeps</div>
+              ${amdHtml}
+            </div>
+            ${sweepTags||sigTags ? `<div class="bt-section"><div class="bt-sec-title">Signals — 15m FBOS/RBOS · 3m SMT · 5m DIV</div>${sweepTags}${sigTags}</div>` : ''}
+            ${newsTags ? `<div class="bt-section"><div class="bt-sec-title">News Events</div>${newsTags}</div>` : ''}
+            ${bcTags ? `<div class="bt-section"><div class="bt-sec-title">Big Candles</div>${bcTags}</div>` : ''}
+            <div class="bt-section">
+              <div class="bt-sec-title">GEX Suite Levels</div>
+              ${gexHtml}
+            </div>
+          </div>
+        </div>
+      </div>`;
+    });
+  }
 });
 </script>
 
@@ -394,37 +556,48 @@ window.addEventListener('DOMContentLoaded',()=>{
   <div class="live"><div class="live-dot"></div>LIVE</div>
 </div>
 
-<div class="price-row" id="price-row"></div>
-<div class="sector-row" id="sector-row"></div>
+<div class="tab-nav">
+  <button class="tab-btn active" onclick="switchTab('brief',this)">Morning Brief</button>
+  <button class="tab-btn" onclick="switchTab('backtest',this)">Backtesting <span class="tab-count" id="bt-days-count"></span></button>
+</div>
 
-<div class="main-grid">
-  <div style="display:flex;flex-direction:column;gap:12px">
-    <div class="card">
-      <div class="card-head"><div class="card-head-icon"></div><div class="card-head-title">Economic Calendar</div></div>
-      <div class="card-body" id="cal-body"></div>
+<div id="tab-brief" class="tab-panel active">
+  <div class="price-row" id="price-row"></div>
+  <div class="sector-row" id="sector-row"></div>
+  <div class="main-grid">
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div class="card">
+        <div class="card-head"><div class="card-head-icon"></div><div class="card-head-title">Economic Calendar</div></div>
+        <div class="card-body" id="cal-body"></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><div class="card-head-icon"></div><div class="card-head-title">IBKR Positions</div></div>
+        <div class="card-body" id="ibkr-body">
+          <div id="ibkr-stats" class="ibkr-stats"></div>
+          <div id="ibkr-pos"></div>
+        </div>
+      </div>
     </div>
-    <div class="card">
-      <div class="card-head"><div class="card-head-icon"></div><div class="card-head-title">IBKR Positions</div></div>
-      <div class="card-body" id="ibkr-body">
-        <div id="ibkr-stats" class="ibkr-stats"></div>
-        <div id="ibkr-pos"></div>
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div class="card">
+        <div class="card-head"><div class="card-head-icon"></div><div class="card-head-title">Market News</div></div>
+        <div class="card-body" id="news-body"></div>
       </div>
     </div>
   </div>
-  <div style="display:flex;flex-direction:column;gap:12px">
-    <div class="card">
-      <div class="card-head"><div class="card-head-icon"></div><div class="card-head-title">Market News</div></div>
-      <div class="card-body" id="news-body"></div>
-    </div>
-  </div>
+</div>
+
+<div id="tab-backtest" class="tab-panel">
+  <div class="bt-summary" id="bt-summary"></div>
+  <div id="bt-days"></div>
 </div>
 
 </body>
 </html>"""
 
 
-def generate_dashboard(ctx, sectors, calendar, news, ibkr, gex) -> Path:
-    gex_b64 = ""
+def generate_dashboard(ctx, sectors, calendar, news, ibkr, gex, days) -> Path:
+    gex_b64  = ""
     gex_path = gex.get("SPY")
     if gex_path and Path(gex_path).exists():
         gex_b64 = base64.b64encode(Path(gex_path).read_bytes()).decode()
@@ -441,28 +614,38 @@ def generate_dashboard(ctx, sectors, calendar, news, ibkr, gex) -> Path:
     }
 
     html = _HTML.replace("__DATA__", json.dumps(data, default=str))
+    html = html.replace("__BACKTEST_DATA__", json.dumps(days, default=str))
     out  = RESULTS_DIR / "morning_brief.html"
     out.write_text(html, encoding="utf-8")
     return out
 
 
 def main():
-    print("  Fetching market data...")
-    ctx      = get_overnight_context()
-    sectors  = get_sectors()
-    calendar = get_econ_calendar()
-    news     = get_news_headlines(10)
-    ibkr     = get_ibkr_data()
-    gex      = capture_gex()
+    print("  Fetching data (morning brief + backtest in parallel)...")
 
+    def _brief():
+        ctx      = get_overnight_context()
+        sectors  = get_sectors()
+        calendar = get_econ_calendar()
+        news     = get_news_headlines(10)
+        ibkr     = get_ibkr_data()
+        gex      = capture_gex()
+        return ctx, sectors, calendar, news, ibkr, gex
+
+    with ThreadPoolExecutor(max_workers=2) as ex:
+        f_brief = ex.submit(_brief)
+        f_bt    = ex.submit(_get_backtest_days)
+        ctx, sectors, calendar, news, ibkr, gex = f_brief.result()
+        days = f_bt.result()
+
+    print(f"  Morning brief ready. Backtest: {len(days)} days.")
     print("  Building dashboard...")
-    html_path = generate_dashboard(ctx, sectors, calendar, news, ibkr, gex)
+    html_path = generate_dashboard(ctx, sectors, calendar, news, ibkr, gex, days)
     print(f"  Saved -> {html_path.name}")
 
     webbrowser.open(html_path.as_uri())
     print("  Opened in browser.")
 
-    # Also save JSON for reference
     out = {
         "generated": datetime.now().isoformat(),
         "ctx": ctx, "sectors": sectors,
