@@ -63,15 +63,15 @@ def print_positions_summary(account_id: str):
     positions = get_positions(account_id)
     summary   = get_account_summary(account_id)
 
-    print(f"\n{'─'*58}")
-    print(f"  IBKR POSITIONS  —  {account_id}")
-    print(f"{'─'*58}")
+    print(f"\n{'-'*58}")
+    print(f"  IBKR POSITIONS  --  {account_id}")
+    print(f"{'-'*58}")
 
     if not positions:
         print("  No open positions.")
     else:
         print(f"  {'Contract':<42} {'Qty':>5}  {'Mkt Val':>10}  {'P&L':>10}")
-        print(f"  {'─'*42}  {'─'*5}  {'─'*10}  {'─'*10}")
+        print(f"  {'-'*42}  {'-'*5}  {'-'*10}  {'-'*10}")
         for p in positions:
             sym  = (p.get("contractDesc") or p.get("ticker") or "?")[:42]
             qty  = p.get("position", 0)
@@ -86,7 +86,7 @@ def print_positions_summary(account_id: str):
     print(f"\n  Net Liquidation : ${nl:,.2f}")
     print(f"  Daily P&L       : ${dpnl:+,.2f}")
     print(f"  Buying Power    : ${bp:,.2f}")
-    print(f"{'─'*58}\n")
+    print(f"{'-'*58}\n")
 
 
 if __name__ == "__main__":
@@ -101,9 +101,9 @@ if __name__ == "__main__":
         raise SystemExit(1)
 
     if not accounts:
-        print("No accounts returned — are you logged in at https://localhost:5000 ?")
+        print("No accounts returned -- are you logged in at https://localhost:5000 ?")
         raise SystemExit(1)
 
     account_id = accounts[0]["accountId"]
-    print(f"Connected — account: {account_id}")
+    print(f"Connected -- account: {account_id}")
     print_positions_summary(account_id)
