@@ -383,12 +383,6 @@ window.addEventListener('DOMContentLoaded',()=>{
     }
   }
 
-  // GEX
-  if(D.gex_img){
-    document.getElementById('gex-img').src='data:image/png;base64,'+D.gex_img;
-    document.getElementById('gex-img').style.display='block';
-    document.getElementById('gex-empty').style.display='none';
-  }
 });
 </script>
 
@@ -421,13 +415,6 @@ window.addEventListener('DOMContentLoaded',()=>{
     <div class="card">
       <div class="card-head"><div class="card-head-icon"></div><div class="card-head-title">Market News</div></div>
       <div class="card-body" id="news-body"></div>
-    </div>
-    <div class="card">
-      <div class="card-head"><div class="card-head-icon"></div><div class="card-head-title">GEX Suite -- SPY Heatmap</div></div>
-      <div class="card-body" style="padding:10px">
-        <img id="gex-img" class="gex-img" style="display:none" alt="GEX heatmap"/>
-        <div id="gex-empty" class="empty-msg">Launch Chrome + GEX Suite first</div>
-      </div>
     </div>
   </div>
 </div>

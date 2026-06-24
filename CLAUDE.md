@@ -22,6 +22,39 @@ Three files, each with a distinct responsibility:
 
 Commit work to git regularly throughout a session — after each meaningful change, not just at the end. Push to GitHub (`git push`) so there is always an up-to-date remote backup. Use clean, descriptive commit messages that explain *why* the change was made. A Stop hook in `~/.claude/settings.json` auto-pushes on session end, but don't rely on that alone — commit and push at logical checkpoints.
 
+## Trading assistant context
+
+This repo also contains a trading assistant for NQ futures + options. Key files:
+- `morning_brief.py` — run before market open, generates `results/morning_brief.html` dashboard + `results/morning_brief.json`
+- `data/ibkr.py` — IBKR Client Portal Gateway REST client (authenticate at https://localhost:5000)
+- `data/gex.py` — captures GEX Suite screenshot via CDP from Chrome on port 9222
+- `scripts/launch_trading_chrome.bat` — starts IBKR gateway + Chrome together (run this first each session)
+
+### User trading profile
+- Trades NQ futures and options on IBKR (account U24694898)
+- Has 2 monitors: TradingView on one, GEX Suite on the other
+- Wants pre-session NQ reads that synthesize GEX levels + TradingView chart + news + IBKR positions
+
+### GEX Suite indicator — level reference
+
+**Level types ranked by importance:**
+1. **Gamma Flip** — above = positive gamma (choppy, mean-reverting, fade/scalp); below = negative gamma (trending, momentum, breakdowns accelerate)
+2. **0DTE Call Wall / Put Wall** — same-day expiration, highly reactive intraday magnets/barriers
+3. **Call Wall** — highest call-side gamma concentration; mechanical selling pressure; break through flips it to support
+4. **Put Wall** — highest put-side gamma concentration; structural floor; fails in bearish conditions → rapid downside
+5. **Session Ceiling / Floor** — expected daily range from implied vol + positioning; break outside = explosive move
+6. **Gamma Levels 1–10** — ranked reaction zones; Level 1 strongest; price steps between them
+7. **Correlated Levels 1–10** — cross-asset influence projected onto chart; most powerful at confluence with Gamma levels
+
+**Confluence rule:** When multiple level types stack at the same price, probability of reaction is highest. Anchor analysis to confluence zones first.
+
+**+ strength modifier** (not in official docs — user confirmed):
+- Levels can show `+`, `++`, or `+++` on the chart label (not every day, only some levels)
+- `+++` = maximum strength / highest conviction
+- Prioritise `+++` levels first regardless of level type — a `+++ Correlated Level` outweighs a plain `Call Wall`
+
+**Supported tickers:** ES1!, NQ1!, GC1!, SI, QQQ, SPY, GLD, SIL, SPX, NDX, VIX, NVDA, AAPL, AMZN, GOOG/GOOGL, META, MSFT, TSLA
+
 ## Design conventions
 
 - Dark theme only. Color palette lives in `:root` in `style.css` — always use those variables, never hardcode colors.
