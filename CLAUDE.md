@@ -22,6 +22,39 @@ Three files, each with a distinct responsibility:
 
 Commit work to git regularly throughout a session — after each meaningful change, not just at the end. Push to GitHub (`git push`) so there is always an up-to-date remote backup. Use clean, descriptive commit messages that explain *why* the change was made. A Stop hook in `~/.claude/settings.json` auto-pushes on session end, but don't rely on that alone — commit and push at logical checkpoints.
 
+## Trading session startup — AUTOMATED PROTOCOL
+
+**Trigger phrases** — when the user says any of the following, execute the full startup sequence below automatically without asking for confirmation:
+- "start session" / "new trading day" / "start trading" / "launch trading"
+- "its a new trading day" / "session ready" / "ready to trade" / "market opens soon"
+- Any greeting that implies a new trading session is beginning
+
+**Full startup sequence (run every step, in order):**
+
+1. **Run the launch script:**
+   ```
+   python start_session.py
+   ```
+   This opens Chrome with TradingView + GEX Suite + IBKR Gateway and generates the morning brief.
+
+2. **Wait for user to confirm they've logged in** to IBKR, TradingView, and GEX Suite. If they say "done", "logged in", "all logged in", or similar — proceed to step 3.
+
+3. **Pull live chart state** using TradingView MCP:
+   - `mcp__tradingview__tv_health_check` — confirm CDP connected
+   - `mcp__tradingview__capture_screenshot` (region: chart) — grab current chart
+   - `mcp__tradingview__data_get_pine_labels` (study_filter: GexSuite) — get live GEX levels
+   - Deliver a full market read: gamma regime, nearest levels above/below, session AMD context, intraday bias
+
+4. **Start the 2-minute monitoring loop** using CronCreate:
+   - cron: `*/2 * * * 1-5` (every 2 minutes, weekdays only)
+   - recurring: true
+   - The cron prompt must: capture a chart screenshot + fetch GEX pine labels, compare to last known state, and report ONLY if notable (level break, gamma regime flip, big opening candle, opening range establishing). If nothing notable, say "No significant change — monitoring."
+   - Save the CronCreate job ID and tell the user they can stop monitoring with `CronDelete <id>`
+
+5. **Deliver the morning brief summary** from `results/morning_brief.json` — prices, sectors, GEX levels map, AMD session context, news, intraday bias.
+
+**Also trigger step 3+4+5 (skip step 1+2) when** the user says "session ready" or "all logged in" mid-session after having already launched Chrome manually.
+
 ## Trading assistant context
 
 This repo also contains a trading assistant for NQ futures + options. Key files:

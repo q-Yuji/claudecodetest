@@ -11,6 +11,9 @@ dashboard (Morning Brief | Backtesting) and opens it in the browser.
 
 import base64
 import json
+import socket
+import subprocess
+import sys
 import warnings
 import webbrowser
 import xml.etree.ElementTree as ET
@@ -343,6 +346,35 @@ body{background:var(--bg);color:var(--text);font-family:'SF Mono','Fira Code',Co
 .bt-tag.news-med{background:var(--yellow-dim);color:var(--yellow);border:1px solid rgba(245,158,11,.2)}
 .bt-tag.big-c{background:rgba(255,255,255,.04);color:var(--text);border:1px solid var(--border)}
 .bt-empty{color:var(--muted);font-size:12px;padding:40px 0;text-align:center;font-style:italic}
+
+/* AI CHAT */
+.chat-wrap{display:flex;flex-direction:column;height:calc(100vh - 180px);min-height:420px}
+.chat-msgs{flex:1;overflow-y:auto;padding:0 2px 16px;display:flex;flex-direction:column;gap:10px;scrollbar-width:thin;scrollbar-color:var(--border) transparent}
+.chat-msg{display:flex;flex-direction:column;gap:3px}
+.chat-msg.user{align-self:flex-end;align-items:flex-end;max-width:75%}
+.chat-msg.ai{align-self:flex-start;align-items:flex-start;max-width:88%}
+.chat-label{font-size:9px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase}
+.chat-bubble{padding:10px 14px;border-radius:10px;font-size:12px;line-height:1.65;white-space:pre-wrap;word-break:break-word}
+.chat-msg.user .chat-bubble{background:var(--accent-dim);border:1px solid rgba(79,142,247,.22);color:var(--text)}
+.chat-msg.ai   .chat-bubble{background:var(--card);border:1px solid var(--border);color:var(--text)}
+.chat-footer{display:flex;gap:8px;padding-top:12px;border-top:1px solid var(--border);align-items:flex-end}
+.chat-input{flex:1;background:var(--card);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:inherit;font-size:12px;padding:10px 14px;resize:none;outline:none;line-height:1.5;min-height:42px;max-height:120px}
+.chat-input:focus{border-color:rgba(79,142,247,.4)}
+.chat-send{background:var(--accent);border:none;border-radius:8px;color:#fff;cursor:pointer;font-family:inherit;font-size:11px;font-weight:700;letter-spacing:.06em;padding:10px 20px;white-space:nowrap;align-self:stretch}
+.chat-send:hover{opacity:.85}.chat-send:disabled{opacity:.35;cursor:default}
+.chat-key-btn{background:var(--card);border:1px solid var(--border);border-radius:8px;color:var(--muted);cursor:pointer;font-size:15px;padding:0 12px;align-self:stretch}
+.chat-key-btn:hover{border-color:rgba(79,142,247,.4);color:var(--text)}
+.chat-warn{background:var(--yellow-dim);border:1px solid rgba(245,158,11,.25);border-radius:8px;color:var(--yellow);font-size:11px;padding:10px 14px;margin-bottom:12px;line-height:1.6;display:none}
+.chat-warn code{background:rgba(245,158,11,.15);padding:1px 5px;border-radius:3px;font-family:inherit}
+.chat-key-form{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:14px;display:none}
+.chat-key-title{font-size:9px;font-weight:700;letter-spacing:.14em;color:var(--muted);text-transform:uppercase;margin-bottom:8px}
+.chat-key-row{display:flex;gap:8px;margin-top:8px}
+.chat-key-input{flex:1;background:var(--bg);border:1px solid var(--border);border-radius:7px;color:var(--text);font-family:inherit;font-size:12px;padding:8px 12px;outline:none}
+.chat-key-input:focus{border-color:rgba(79,142,247,.4)}
+.chat-key-save{background:var(--accent);border:none;border-radius:7px;color:#fff;cursor:pointer;font-family:inherit;font-size:11px;font-weight:700;padding:8px 16px}
+.typing-dot{display:inline-block;width:4px;height:4px;border-radius:50%;background:var(--muted);margin:0 1px;animation:tdot 1.2s ease-in-out infinite}
+.typing-dot:nth-child(2){animation-delay:.2s}.typing-dot:nth-child(3){animation-delay:.4s}
+@keyframes tdot{0%,80%,100%{opacity:.2}40%{opacity:1}}
 </style>
 </head>
 <body>
@@ -559,6 +591,7 @@ window.addEventListener('DOMContentLoaded', () => {
 <div class="tab-nav">
   <button class="tab-btn active" onclick="switchTab('brief',this)">Morning Brief</button>
   <button class="tab-btn" onclick="switchTab('backtest',this)">Backtesting <span class="tab-count" id="bt-days-count"></span></button>
+  <button class="tab-btn" onclick="switchTab('ai',this);aiCheck()">AI Assistant</button>
 </div>
 
 <div id="tab-brief" class="tab-panel active">
@@ -592,8 +625,96 @@ window.addEventListener('DOMContentLoaded', () => {
   <div id="bt-days"></div>
 </div>
 
+<div id="tab-ai" class="tab-panel">
+  <div class="chat-warn" id="ai-warn">
+    Chat server not running &mdash; start it with: <code>python chat_server.py</code>
+  </div>
+  <div class="chat-key-form" id="ai-key-form">
+    <div class="chat-key-title">Anthropic API Key</div>
+    <div style="font-size:11px;color:var(--text)">Enter once &mdash; saved to chat_server config.</div>
+    <div class="chat-key-row">
+      <input class="chat-key-input" id="ai-key-input" type="password" placeholder="sk-ant-api03-...">
+      <button class="chat-key-save" onclick="aiSaveKey()">Save</button>
+    </div>
+  </div>
+  <div class="chat-wrap">
+    <div class="chat-msgs" id="ai-msgs"></div>
+    <div class="chat-footer">
+      <textarea class="chat-input" id="ai-input" rows="2" placeholder="Ask about NQ bias, GEX levels, trade setups, session structure... (Ctrl+Enter to send)"></textarea>
+      <button class="chat-send" id="ai-send" onclick="aiSend()">Send</button>
+      <button class="chat-key-btn" onclick="aiToggleKey()" title="Set API Key">&#x1F511;</button>
+    </div>
+  </div>
+</div>
+
+<script src="chat.js"></script>
 </body>
 </html>"""
+
+
+def save_session_context(days: list):
+    """Merge today's AMD session data into gex_levels.json without clobbering TV GEX levels."""
+    if not days:
+        return
+    gex_path = RESULTS_DIR / "gex_levels.json"
+    data: dict = {}
+    if gex_path.exists():
+        try:
+            data = json.loads(gex_path.read_text())
+        except Exception:
+            pass
+
+    today = days[-1]
+    ah, al = today.get("asia_high", 0), today.get("asia_low", 0)
+    lh, ll = today.get("london_high", 0), today.get("london_low", 0)
+    if lh and ah and lh > ah:
+        sweep = "Asia High"
+    elif ll and al and ll < al:
+        sweep = "Asia Low"
+    else:
+        sweep = "none"
+
+    data["session_amd"] = {
+        "date":          str(today.get("date")),
+        "asia_high":     ah,
+        "asia_low":      al,
+        "london_high":   lh,
+        "london_low":    ll,
+        "london_sweep":  sweep,
+        "amd_notes":     today.get("amd_notes", []),
+        "day_bias":      today.get("day_bias", "unknown"),
+    }
+
+    recent = []
+    for r in reversed(days[-6:-1]):
+        rh, rl = r.get("london_high", 0), r.get("london_low", 0)
+        ra, ra2 = r.get("asia_high", 0), r.get("asia_low", 0)
+        rs = "Asia High" if (rh and ra and rh > ra) else "Asia Low" if (rl and ra2 and rl < ra2) else "none"
+        recent.append({
+            "date":          str(r.get("date")),
+            "london_sweep":  rs,
+            "day_bias":      r.get("day_bias", "unknown"),
+            "notes":         "; ".join(r.get("amd_notes", [])) or "No session sweeps",
+        })
+    data["recent_amd"] = recent
+
+    gex_path.write_text(json.dumps(data, indent=2, default=str))
+
+
+def _start_chat_server():
+    """Start chat_server.py in a new console if not already running."""
+    try:
+        with socket.create_connection(("localhost", 8765), timeout=0.5):
+            print("  AI Chat server already running on http://localhost:8765")
+            return
+    except OSError:
+        pass
+    chat = Path(__file__).parent / "chat_server.py"
+    if not chat.exists():
+        return
+    flags = getattr(subprocess, "CREATE_NEW_CONSOLE", 0)
+    subprocess.Popen([sys.executable, str(chat)], creationflags=flags)
+    print("  AI Chat server started → http://localhost:8765")
 
 
 def generate_dashboard(ctx, sectors, calendar, news, ibkr, gex, days) -> Path:
@@ -656,6 +777,9 @@ def main():
     (RESULTS_DIR / "morning_brief.json").write_text(
         json.dumps(out, indent=2, default=str)
     )
+
+    save_session_context(days)
+    _start_chat_server()
 
 
 if __name__ == "__main__":
