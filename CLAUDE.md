@@ -62,6 +62,21 @@ Commit work to git regularly throughout a session — after each meaningful chan
 
 **Also trigger step 3+4+5 (skip step 1+2) when** the user says "session ready" or "all logged in" mid-session after having already launched Chrome manually.
 
+## On-demand trade logging
+
+**Trigger phrases** — "log that trade" / "log this trade" / "record that trade" or similar, said right after executing (or closing) an NQ futures trade on TradingView via the Tradovate broker panel (Tradeify prop account).
+
+**Global hotkey:** `Ctrl+Alt+L` runs `scripts/log_trade_hotkey.ahk` (AutoHotkey, auto-starts on login via a Startup-folder shortcut) — it activates the VS Code window running Claude Code, focuses its active terminal, and types/submits "log that trade" for you. Works from any application (e.g. while TradingView has focus). Caveat: it focuses whichever terminal tab is currently active in VS Code, so keep the Claude Code tab as the last one you used if you have other terminal tabs open.
+
+**Why on-demand, not a background poll:** Tradovate's API isn't available for Tradeify's sim-funded accounts, so the only way to read a fill is visually — screenshotting the Tradovate panel in TradingView and reading it, the same way GEX pine labels are read. Polling that on a timer (like the 2-minute GEX monitor) would burn a screenshot + vision read on every cycle regardless of whether a trade happened — expensive across a full session. Doing it only when the user asks means the cost scales with actual trades taken, not with elapsed time.
+
+**Steps when triggered:**
+1. `mcp__tradingview__capture_screenshot` — capture the Tradovate trading panel (Positions/Orders).
+2. Read off: direction, entry or exit price, contracts, approximate time.
+3. Append a draft row to `my_trades.csv` with those fields filled in and the qualitative columns (`setup_notes`, `gex_level_type`, `level_strength`, `smt_confluence`, `gamma_regime`) left blank.
+4. Tell the user the row was added and ask them to fill in the qualitative context (what they saw, which GEX level, SMT confluence, etc.) — either now or after the session.
+5. Flag that the entry/exit values were read visually off a screenshot, not pulled from a data feed — worth a quick spot-check against the actual fill before treating the row as ground truth for analytics.
+
 ## Trading assistant context
 
 This repo also contains a trading assistant for NQ futures + options. Key files:
