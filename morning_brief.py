@@ -143,8 +143,9 @@ def get_news_headlines(n: int = 10) -> list:
         for item in items[:n]:
             title = item.findtext("title", "").strip()
             pubdate = item.findtext("pubDate", "").strip()
+            url = item.findtext("link", "").strip()
             if title:
-                headlines.append({"title": title, "date": pubdate})
+                headlines.append({"title": title, "date": pubdate, "url": url})
         return headlines
     except Exception as e:
         return [{"error": str(e)}]
@@ -291,6 +292,8 @@ body{background:var(--bg);color:var(--text);font-family:'SF Mono','Fira Code',Co
 .news-item:last-child{border-bottom:none}
 .news-bar{width:2px;min-height:30px;background:var(--accent);border-radius:2px;flex-shrink:0;opacity:.4}
 .news-title{font-size:12px;color:var(--text);line-height:1.5;margin-bottom:2px}
+.news-title a{color:var(--text);text-decoration:none}
+.news-title a:hover{color:var(--accent);text-decoration:underline}
 .news-date{font-size:10px;color:var(--muted)}
 
 /* IBKR */
@@ -447,7 +450,7 @@ window.addEventListener('DOMContentLoaded', () => {
     news.innerHTML += `<div class="news-item">
       <div class="news-bar"></div>
       <div class="news-content">
-        <div class="news-title">${n.title}</div>
+        <div class="news-title">${n.url ? `<a href="${n.url}" target="_blank" rel="noopener">${n.title}</a>` : n.title}</div>
         ${d ? `<div class="news-date">${d}</div>` : ''}
       </div>
     </div>`;
@@ -714,7 +717,7 @@ def _start_chat_server():
         return
     flags = getattr(subprocess, "CREATE_NEW_CONSOLE", 0)
     subprocess.Popen([sys.executable, str(chat)], creationflags=flags)
-    print("  AI Chat server started → http://localhost:8765")
+    print("  AI Chat server started -> http://localhost:8765")
 
 
 def generate_dashboard(ctx, sectors, calendar, news, ibkr, gex, days) -> Path:
