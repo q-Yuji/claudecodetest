@@ -1,12 +1,429 @@
 {
+  "2026-06-18": {
+    "source": "tv_replay",
+    "symbol": "NQ1!",
+    "partial": "QQQ correlated levels only - NQ gamma set not in indicator history for this date",
+    "levels": [
+      {
+        "name": "QQQ 724",
+        "price": 30060.35
+      },
+      {
+        "name": "QQQ 724.5",
+        "price": 30081.11
+      },
+      {
+        "name": "QQQ 725 [+]",
+        "price": 30101.87
+      },
+      {
+        "name": "QQQ 725.5",
+        "price": 30122.63
+      },
+      {
+        "name": "QQQ 726",
+        "price": 30143.39
+      },
+      {
+        "name": "QQQ 726.5",
+        "price": 30164.15
+      },
+      {
+        "name": "QQQ 727 [+]",
+        "price": 30184.91
+      },
+      {
+        "name": "QQQ 727.5",
+        "price": 30205.67
+      },
+      {
+        "name": "QQQ 728",
+        "price": 30226.43
+      },
+      {
+        "name": "QQQ 728.5 [+++]",
+        "price": 30247.19
+      },
+      {
+        "name": "QQQ 729 [+]",
+        "price": 30267.95
+      },
+      {
+        "name": "QQQ 729.5",
+        "price": 30288.71
+      },
+      {
+        "name": "QQQ 730",
+        "price": 30309.47
+      },
+      {
+        "name": "QQQ 730.5",
+        "price": 30330.23
+      },
+      {
+        "name": "QQQ 731",
+        "price": 30350.99
+      },
+      {
+        "name": "QQQ 731.5",
+        "price": 30371.75
+      },
+      {
+        "name": "QQQ 732",
+        "price": 30392.51
+      },
+      {
+        "name": "QQQ 732.5",
+        "price": 30413.27
+      },
+      {
+        "name": "QQQ 733 [++]",
+        "price": 30434.03
+      },
+      {
+        "name": "QQQ 733.5 [++]",
+        "price": 30454.79
+      },
+      {
+        "name": "QQQ 734 [++]",
+        "price": 30475.55
+      },
+      {
+        "name": "QQQ 734.5 [++]",
+        "price": 30496.31
+      },
+      {
+        "name": "QQQ 735",
+        "price": 30517.07
+      },
+      {
+        "name": "QQQ 735.5",
+        "price": 30537.83
+      },
+      {
+        "name": "QQQ 736",
+        "price": 30558.59
+      }
+    ],
+    "captured_at": "2026-07-04T23:52:10"
+  },
+  "2026-06-22": {
+    "source": "tv_replay",
+    "symbol": "NQ1!",
+    "levels": [
+      {
+        "name": "Call Wall",
+        "price": 31121.4
+      },
+      {
+        "name": "Put Wall",
+        "price": 29046.64
+      },
+      {
+        "name": "Gamma Flip",
+        "price": 30395.23
+      },
+      {
+        "name": "Call Wall 0DTE [++]",
+        "price": 30913.92
+      },
+      {
+        "name": "Put Wall 0DTE",
+        "price": 30208.5
+      },
+      {
+        "name": "Gamma Flip 0DTE",
+        "price": 30374.48
+      },
+      {
+        "name": "Γ-1 [+]",
+        "price": 30706.44
+      },
+      {
+        "name": "Γ-2",
+        "price": 31328.87
+      },
+      {
+        "name": "Γ-3",
+        "price": 30498.97
+      },
+      {
+        "name": "Γ-4",
+        "price": 30291.49
+      },
+      {
+        "name": "Γ-5",
+        "price": 30084.02
+      },
+      {
+        "name": "Γ-6",
+        "price": 31536.35
+      },
+      {
+        "name": "Γ-7",
+        "price": 31743.82
+      },
+      {
+        "name": "Γ-8",
+        "price": 31951.3
+      },
+      {
+        "name": "Γ-9",
+        "price": 29876.54
+      },
+      {
+        "name": "Γ-10",
+        "price": 29461.59
+      },
+      {
+        "name": "QQQ 725.5",
+        "price": 30104.76
+      },
+      {
+        "name": "QQQ 726",
+        "price": 30125.51
+      },
+      {
+        "name": "QQQ 726.5",
+        "price": 30146.26
+      },
+      {
+        "name": "QQQ 727",
+        "price": 30167.01
+      },
+      {
+        "name": "QQQ 727.5",
+        "price": 30187.75
+      },
+      {
+        "name": "QQQ 728.5 [++]",
+        "price": 30229.25
+      },
+      {
+        "name": "QQQ 729 [++]",
+        "price": 30250.0
+      },
+      {
+        "name": "QQQ 729.5 [++]",
+        "price": 30270.74
+      },
+      {
+        "name": "QQQ 730.5",
+        "price": 30312.24
+      },
+      {
+        "name": "QQQ 731",
+        "price": 30332.99
+      },
+      {
+        "name": "QQQ 731.5",
+        "price": 30353.73
+      },
+      {
+        "name": "QQQ 733",
+        "price": 30415.98
+      },
+      {
+        "name": "QQQ 733.5",
+        "price": 30436.72
+      },
+      {
+        "name": "QQQ 734 [+++]",
+        "price": 30457.47
+      },
+      {
+        "name": "QQQ 734.5 [+++]",
+        "price": 30478.22
+      },
+      {
+        "name": "QQQ 735.5",
+        "price": 30519.72
+      },
+      {
+        "name": "QQQ 736 [+]",
+        "price": 30540.46
+      },
+      {
+        "name": "QQQ 736.5",
+        "price": 30561.21
+      },
+      {
+        "name": "QQQ 737",
+        "price": 30581.96
+      },
+      {
+        "name": "QQQ 737.5",
+        "price": 30602.71
+      }
+    ],
+    "captured_at": "2026-07-04T23:50:15"
+  },
+  "2026-06-23": {
+    "source": "tv_replay",
+    "symbol": "NQ1!",
+    "levels": [
+      {
+        "name": "Call Wall",
+        "price": 31148.47
+      },
+      {
+        "name": "Put Wall",
+        "price": 29071.91
+      },
+      {
+        "name": "Gamma Flip",
+        "price": 30421.67
+      },
+      {
+        "name": "Call Wall 0DTE",
+        "price": 30940.82
+      },
+      {
+        "name": "Put Wall 0DTE",
+        "price": 29902.53
+      },
+      {
+        "name": "Gamma Flip 0DTE",
+        "price": 30442.44
+      },
+      {
+        "name": "Γ-1",
+        "price": 30733.16
+      },
+      {
+        "name": "Γ-2",
+        "price": 30525.5
+      },
+      {
+        "name": "Γ-3 [++]",
+        "price": 30317.85
+      },
+      {
+        "name": "Γ-4 [++]",
+        "price": 31023.88
+      },
+      {
+        "name": "Γ-5",
+        "price": 30899.28
+      },
+      {
+        "name": "Γ-6",
+        "price": 31563.79
+      },
+      {
+        "name": "Γ-7",
+        "price": 31356.13
+      },
+      {
+        "name": "Γ-8",
+        "price": 30110.19
+      },
+      {
+        "name": "Γ-9",
+        "price": 29694.88
+      },
+      {
+        "name": "Γ-10",
+        "price": 31522.25
+      },
+      {
+        "name": "QQQ 730.5 [++]",
+        "price": 30338.61
+      },
+      {
+        "name": "QQQ 731 [++]",
+        "price": 30359.38
+      },
+      {
+        "name": "QQQ 731.5",
+        "price": 30380.14
+      },
+      {
+        "name": "QQQ 732",
+        "price": 30400.91
+      },
+      {
+        "name": "QQQ 733.5",
+        "price": 30463.21
+      },
+      {
+        "name": "QQQ 734",
+        "price": 30483.97
+      },
+      {
+        "name": "QQQ 734.5",
+        "price": 30504.74
+      },
+      {
+        "name": "QQQ 735.5 [+++]",
+        "price": 30546.27
+      },
+      {
+        "name": "QQQ 736 [++]",
+        "price": 30567.03
+      },
+      {
+        "name": "QQQ 736.5",
+        "price": 30587.8
+      },
+      {
+        "name": "QQQ 737",
+        "price": 30608.57
+      },
+      {
+        "name": "QQQ 737.5 [+]",
+        "price": 30629.33
+      },
+      {
+        "name": "QQQ 738",
+        "price": 30650.1
+      },
+      {
+        "name": "QQQ 738.5",
+        "price": 30670.86
+      },
+      {
+        "name": "QQQ 739",
+        "price": 30691.63
+      },
+      {
+        "name": "QQQ 739.5",
+        "price": 30712.39
+      },
+      {
+        "name": "QQQ 740.5 [++]",
+        "price": 30753.93
+      },
+      {
+        "name": "QQQ 741 [+++]",
+        "price": 30774.69
+      },
+      {
+        "name": "QQQ 741.5",
+        "price": 30795.46
+      },
+      {
+        "name": "QQQ 742",
+        "price": 30816.22
+      }
+    ],
+    "captured_at": "2026-07-04T23:50:15"
+  },
   "2026-06-24": {
-    "captured_at": "2026-06-24T13:33:29",
-    "source": "live_capture",
+    "source": "tv_replay",
     "symbol": "NQ1!",
     "levels": [
       {
         "name": "Call Wall",
         "price": 33242.8
+      },
+      {
+        "name": "Put Wall / Put Wall 0DTE",
+        "price": 29087.45
+      },
+      {
+        "name": "Gamma Flip",
+        "price": 30437.94
       },
       {
         "name": "Call Wall 0DTE",
@@ -17,53 +434,1203 @@
         "price": 30583.38
       },
       {
-        "name": "Gamma Flip",
-        "price": 30437.94
-      },
-      {
-        "name": "Γ-9",
-        "price": 30417.16
-      },
-      {
-        "name": "Γ-8",
-        "price": 30334.06
-      },
-      {
-        "name": "Γ-10",
-        "price": 30209.39
-      },
-      {
-        "name": "Γ-5",
-        "price": 30167.84
-      },
-      {
-        "name": "Γ-4",
-        "price": 30126.29
-      },
-      {
         "name": "Γ-1",
         "price": 29918.52
-      },
-      {
-        "name": "Γ-3",
-        "price": 29710.75
       },
       {
         "name": "Γ-2",
         "price": 29295.22
       },
       {
-        "name": "Put Wall / Put Wall 0DTE",
-        "price": 29087.45
+        "name": "Γ-3",
+        "price": 29710.75
+      },
+      {
+        "name": "Γ-4",
+        "price": 30126.29
+      },
+      {
+        "name": "Γ-5",
+        "price": 30167.84
+      },
+      {
+        "name": "Γ-6",
+        "price": 28671.92
       },
       {
         "name": "Γ-7",
         "price": 28879.68
       },
       {
-        "name": "Γ-6",
-        "price": 28671.92
+        "name": "Γ-8",
+        "price": 30334.06
+      },
+      {
+        "name": "Γ-9",
+        "price": 30417.16
+      },
+      {
+        "name": "Γ-10",
+        "price": 30209.39
+      },
+      {
+        "name": "QQQ 710",
+        "price": 29502.99
+      },
+      {
+        "name": "QQQ 710.5",
+        "price": 29523.76
+      },
+      {
+        "name": "QQQ 711",
+        "price": 29544.54
+      },
+      {
+        "name": "QQQ 711.5",
+        "price": 29565.32
+      },
+      {
+        "name": "QQQ 712",
+        "price": 29586.09
+      },
+      {
+        "name": "QQQ 712.5",
+        "price": 29606.87
+      },
+      {
+        "name": "QQQ 713",
+        "price": 29627.65
+      },
+      {
+        "name": "QQQ 713.5 [+]",
+        "price": 29648.42
+      },
+      {
+        "name": "QQQ 714 [+++]",
+        "price": 29669.2
+      },
+      {
+        "name": "QQQ 714.5",
+        "price": 29689.98
+      },
+      {
+        "name": "QQQ 715.5 [+]",
+        "price": 29731.53
+      },
+      {
+        "name": "QQQ 716",
+        "price": 29752.31
+      },
+      {
+        "name": "QQQ 716.5",
+        "price": 29773.08
+      },
+      {
+        "name": "QQQ 717",
+        "price": 29793.86
+      },
+      {
+        "name": "QQQ 717.5 [+]",
+        "price": 29814.64
+      },
+      {
+        "name": "QQQ 718",
+        "price": 29835.41
+      },
+      {
+        "name": "QQQ 718.5 [++]",
+        "price": 29856.19
+      },
+      {
+        "name": "QQQ 719 [+++]",
+        "price": 29876.97
+      },
+      {
+        "name": "QQQ 719.5 [+]",
+        "price": 29897.74
+      },
+      {
+        "name": "QQQ 720.5",
+        "price": 29939.3
+      },
+      {
+        "name": "QQQ 721",
+        "price": 29960.07
+      },
+      {
+        "name": "QQQ 721.5",
+        "price": 29980.85
+      },
+      {
+        "name": "QQQ 722",
+        "price": 30001.63
       }
-    ]
+    ],
+    "captured_at": "2026-07-04T23:50:55"
+  },
+  "2026-06-25": {
+    "source": "tv_replay",
+    "symbol": "NQ1!",
+    "levels": [
+      {
+        "name": "Call Wall",
+        "price": 33222.46
+      },
+      {
+        "name": "Put Wall",
+        "price": 29069.65
+      },
+      {
+        "name": "Gamma Flip [+++]",
+        "price": 30190.91
+      },
+      {
+        "name": "Call Wall 0DTE",
+        "price": 30232.44
+      },
+      {
+        "name": "Put Wall 0DTE",
+        "price": 29484.93
+      },
+      {
+        "name": "Gamma Flip 0DTE",
+        "price": 29692.57
+      },
+      {
+        "name": "Γ-1",
+        "price": 29277.29
+      },
+      {
+        "name": "Γ-2",
+        "price": 29900.21
+      },
+      {
+        "name": "Γ-3",
+        "price": 29443.4
+      },
+      {
+        "name": "Γ-4",
+        "price": 29360.35
+      },
+      {
+        "name": "Γ-5",
+        "price": 29111.18
+      },
+      {
+        "name": "Γ-6",
+        "price": 28654.37
+      },
+      {
+        "name": "Γ-7",
+        "price": 28862.01
+      },
+      {
+        "name": "Γ-8",
+        "price": 28446.73
+      },
+      {
+        "name": "Γ-9",
+        "price": 30149.38
+      },
+      {
+        "name": "Γ-10",
+        "price": 28820.48
+      },
+      {
+        "name": "QQQ 718.5",
+        "price": 29837.92
+      },
+      {
+        "name": "QQQ 719",
+        "price": 29858.68
+      },
+      {
+        "name": "QQQ 719.5",
+        "price": 29879.45
+      },
+      {
+        "name": "QQQ 720.5",
+        "price": 29920.98
+      },
+      {
+        "name": "QQQ 721",
+        "price": 29941.74
+      },
+      {
+        "name": "QQQ 721.5 [+]",
+        "price": 29962.5
+      },
+      {
+        "name": "QQQ 722 [+++]",
+        "price": 29983.27
+      },
+      {
+        "name": "QQQ 722.5",
+        "price": 30004.03
+      },
+      {
+        "name": "QQQ 723",
+        "price": 30024.8
+      },
+      {
+        "name": "QQQ 723.5 [+]",
+        "price": 30045.56
+      },
+      {
+        "name": "QQQ 724",
+        "price": 30066.32
+      },
+      {
+        "name": "QQQ 724.5",
+        "price": 30087.09
+      },
+      {
+        "name": "QQQ 725",
+        "price": 30107.85
+      },
+      {
+        "name": "QQQ 725.5 [+]",
+        "price": 30128.62
+      },
+      {
+        "name": "QQQ 726.5",
+        "price": 30170.14
+      },
+      {
+        "name": "QQQ 727.5 [+]",
+        "price": 30211.67
+      },
+      {
+        "name": "QQQ 728.5",
+        "price": 30253.2
+      },
+      {
+        "name": "QQQ 729",
+        "price": 30273.96
+      },
+      {
+        "name": "QQQ 729.5",
+        "price": 30294.73
+      },
+      {
+        "name": "QQQ 730",
+        "price": 30315.49
+      },
+      {
+        "name": "QQQ 730.5",
+        "price": 30336.26
+      }
+    ],
+    "captured_at": "2026-07-04T23:50:15"
+  },
+  "2026-06-26": {
+    "source": "tv_replay",
+    "symbol": "NQ1!",
+    "levels": [
+      {
+        "name": "Call Wall",
+        "price": 33247.09
+      },
+      {
+        "name": "Put Wall",
+        "price": 29091.21
+      },
+      {
+        "name": "Gamma Flip",
+        "price": 30254.86
+      },
+      {
+        "name": "Call Wall 0DTE",
+        "price": 30337.97
+      },
+      {
+        "name": "Put Wall 0DTE",
+        "price": 29299.0
+      },
+      {
+        "name": "Gamma Flip 0DTE",
+        "price": 29756.15
+      },
+      {
+        "name": "Γ-1 [+]",
+        "price": 29714.59
+      },
+      {
+        "name": "Γ-2",
+        "price": 29506.8
+      },
+      {
+        "name": "Γ-3",
+        "price": 29922.38
+      },
+      {
+        "name": "Γ-4",
+        "price": 30171.74
+      },
+      {
+        "name": "Γ-5",
+        "price": 29465.24
+      },
+      {
+        "name": "Γ-6",
+        "price": 28883.41
+      },
+      {
+        "name": "Γ-7",
+        "price": 30753.56
+      },
+      {
+        "name": "Γ-8",
+        "price": 28800.3
+      },
+      {
+        "name": "Γ-9",
+        "price": 30670.44
+      },
+      {
+        "name": "Γ-10",
+        "price": 30628.89
+      },
+      {
+        "name": "QQQ 709.5",
+        "price": 29486.02
+      },
+      {
+        "name": "QQQ 710.5",
+        "price": 29527.58
+      },
+      {
+        "name": "QQQ 711",
+        "price": 29548.36
+      },
+      {
+        "name": "QQQ 711.5",
+        "price": 29569.13
+      },
+      {
+        "name": "QQQ 712",
+        "price": 29589.91
+      },
+      {
+        "name": "QQQ 712.5",
+        "price": 29610.69
+      },
+      {
+        "name": "QQQ 713 [+++]",
+        "price": 29631.47
+      },
+      {
+        "name": "QQQ 713.5 [++]",
+        "price": 29652.25
+      },
+      {
+        "name": "QQQ 714",
+        "price": 29673.03
+      },
+      {
+        "name": "QQQ 714.5",
+        "price": 29693.81
+      },
+      {
+        "name": "QQQ 715.5",
+        "price": 29735.37
+      },
+      {
+        "name": "QQQ 716.5 [+]",
+        "price": 29776.93
+      },
+      {
+        "name": "QQQ 717",
+        "price": 29797.71
+      },
+      {
+        "name": "QQQ 717.5",
+        "price": 29818.49
+      },
+      {
+        "name": "QQQ 718 [+++]",
+        "price": 29839.27
+      },
+      {
+        "name": "QQQ 718.5 [+]",
+        "price": 29860.05
+      },
+      {
+        "name": "QQQ 719",
+        "price": 29880.83
+      },
+      {
+        "name": "QQQ 719.5",
+        "price": 29901.61
+      },
+      {
+        "name": "QQQ 720.5",
+        "price": 29943.16
+      },
+      {
+        "name": "QQQ 721",
+        "price": 29963.94
+      }
+    ],
+    "captured_at": "2026-07-04T23:50:15"
+  },
+  "2026-06-29": {
+    "source": "tv_replay",
+    "symbol": "NQ1!",
+    "levels": [
+      {
+        "name": "Call Wall",
+        "price": 33186.83
+      },
+      {
+        "name": "Put Wall / Put Wall 0DTE",
+        "price": 29038.48
+      },
+      {
+        "name": "Gamma Flip",
+        "price": 30241.5
+      },
+      {
+        "name": "Call Wall 0DTE",
+        "price": 30075.56
+      },
+      {
+        "name": "Gamma Flip 0DTE",
+        "price": 29909.63
+      },
+      {
+        "name": "Γ-1",
+        "price": 29660.73
+      },
+      {
+        "name": "Γ-2 [+]",
+        "price": 29245.89
+      },
+      {
+        "name": "Γ-3",
+        "price": 28831.06
+      },
+      {
+        "name": "Γ-4",
+        "price": 29453.31
+      },
+      {
+        "name": "Γ-5",
+        "price": 29411.83
+      },
+      {
+        "name": "Γ-6",
+        "price": 28623.64
+      },
+      {
+        "name": "Γ-7",
+        "price": 29868.15
+      },
+      {
+        "name": "Γ-8",
+        "price": 28416.22
+      },
+      {
+        "name": "Γ-9",
+        "price": 30117.05
+      },
+      {
+        "name": "Γ-10",
+        "price": 30282.98
+      },
+      {
+        "name": "QQQ 708 [++]",
+        "price": 29370.34
+      },
+      {
+        "name": "QQQ 708.5 [+++]",
+        "price": 29391.09
+      },
+      {
+        "name": "QQQ 709.5",
+        "price": 29432.57
+      },
+      {
+        "name": "QQQ 710.5",
+        "price": 29474.05
+      },
+      {
+        "name": "QQQ 711",
+        "price": 29494.79
+      },
+      {
+        "name": "QQQ 711.5",
+        "price": 29515.54
+      },
+      {
+        "name": "QQQ 712",
+        "price": 29536.28
+      },
+      {
+        "name": "QQQ 712.5",
+        "price": 29557.02
+      },
+      {
+        "name": "QQQ 713 [++]",
+        "price": 29577.76
+      },
+      {
+        "name": "QQQ 713.5 [++]",
+        "price": 29598.5
+      },
+      {
+        "name": "QQQ 714 [++]",
+        "price": 29619.24
+      },
+      {
+        "name": "QQQ 714.5",
+        "price": 29639.99
+      },
+      {
+        "name": "QQQ 715.5",
+        "price": 29681.47
+      },
+      {
+        "name": "QQQ 716",
+        "price": 29702.21
+      },
+      {
+        "name": "QQQ 716.5",
+        "price": 29722.95
+      },
+      {
+        "name": "QQQ 717",
+        "price": 29743.7
+      },
+      {
+        "name": "QQQ 717.5",
+        "price": 29764.44
+      },
+      {
+        "name": "QQQ 718",
+        "price": 29785.18
+      },
+      {
+        "name": "QQQ 718.5",
+        "price": 29805.92
+      },
+      {
+        "name": "QQQ 719",
+        "price": 29826.66
+      },
+      {
+        "name": "QQQ 719.5",
+        "price": 29847.4
+      }
+    ],
+    "captured_at": "2026-07-04T23:50:15"
+  },
+  "2026-06-30": {
+    "source": "tv_replay",
+    "symbol": "NQ1!",
+    "levels": [
+      {
+        "name": "Call Wall",
+        "price": 33201.19
+      },
+      {
+        "name": "Put Wall / Put Wall 0DTE [++]",
+        "price": 29673.57
+      },
+      {
+        "name": "Gamma Flip [++]",
+        "price": 29922.58
+      },
+      {
+        "name": "Call Wall 0DTE",
+        "price": 30088.58
+      },
+      {
+        "name": "Gamma Flip 0DTE",
+        "price": 30171.58
+      },
+      {
+        "name": "Γ-1 [++]",
+        "price": 30296.09
+      },
+      {
+        "name": "Γ-2",
+        "price": 30503.6
+      },
+      {
+        "name": "Γ-3 [+]",
+        "price": 30130.08
+      },
+      {
+        "name": "Γ-4",
+        "price": 30420.59
+      },
+      {
+        "name": "Γ-5",
+        "price": 30254.59
+      },
+      {
+        "name": "Γ-6",
+        "price": 30711.1
+      },
+      {
+        "name": "Γ-7",
+        "price": 29466.06
+      },
+      {
+        "name": "Γ-8",
+        "price": 29507.56
+      },
+      {
+        "name": "Γ-9",
+        "price": 29258.55
+      },
+      {
+        "name": "Γ-10",
+        "price": 30918.61
+      },
+      {
+        "name": "QQQ 718",
+        "price": 29798.07
+      },
+      {
+        "name": "QQQ 718.5",
+        "price": 29818.82
+      },
+      {
+        "name": "QQQ 719",
+        "price": 29839.57
+      },
+      {
+        "name": "QQQ 719.5",
+        "price": 29860.32
+      },
+      {
+        "name": "QQQ 720 [+]",
+        "price": 29881.07
+      },
+      {
+        "name": "QQQ 720.5 [+++]",
+        "price": 29901.82
+      },
+      {
+        "name": "QQQ 721.5",
+        "price": 29943.33
+      },
+      {
+        "name": "QQQ 722 [+]",
+        "price": 29964.08
+      },
+      {
+        "name": "QQQ 722.5",
+        "price": 29984.83
+      },
+      {
+        "name": "QQQ 723",
+        "price": 30005.58
+      },
+      {
+        "name": "QQQ 723.5",
+        "price": 30026.33
+      },
+      {
+        "name": "QQQ 724 [+]",
+        "price": 30047.08
+      },
+      {
+        "name": "QQQ 724.5",
+        "price": 30067.83
+      },
+      {
+        "name": "QQQ 725.5 [+++]",
+        "price": 30109.33
+      },
+      {
+        "name": "QQQ 726.5",
+        "price": 30150.83
+      },
+      {
+        "name": "QQQ 727.5",
+        "price": 30192.34
+      },
+      {
+        "name": "QQQ 728",
+        "price": 30213.09
+      },
+      {
+        "name": "QQQ 728.5",
+        "price": 30233.84
+      },
+      {
+        "name": "QQQ 729.5",
+        "price": 30275.34
+      }
+    ],
+    "captured_at": "2026-07-04T23:50:15"
+  },
+  "2026-07-01": {
+    "source": "tv_replay",
+    "symbol": "NQ1!",
+    "levels": [
+      {
+        "name": "Call Wall",
+        "price": 30675.17
+      },
+      {
+        "name": "Put Wall",
+        "price": 29017.05
+      },
+      {
+        "name": "Gamma Flip / Gamma Flip 0DTE",
+        "price": 29804.65
+      },
+      {
+        "name": "Call Wall 0DTE",
+        "price": 29970.47
+      },
+      {
+        "name": "Put Wall 0DTE",
+        "price": 29887.56
+      },
+      {
+        "name": "Γ-1",
+        "price": 30260.64
+      },
+      {
+        "name": "Γ-2 [+]",
+        "price": 30467.9
+      },
+      {
+        "name": "Γ-3",
+        "price": 30882.43
+      },
+      {
+        "name": "Γ-4 [+]",
+        "price": 30385.0
+      },
+      {
+        "name": "Γ-5",
+        "price": 30219.18
+      },
+      {
+        "name": "Γ-6",
+        "price": 31089.7
+      },
+      {
+        "name": "Γ-7",
+        "price": 31006.79
+      },
+      {
+        "name": "Γ-8",
+        "price": 29638.84
+      },
+      {
+        "name": "Γ-9",
+        "price": 29846.11
+      },
+      {
+        "name": "Γ-10",
+        "price": 31296.96
+      },
+      {
+        "name": "QQQ 730.5",
+        "price": 30281.36
+      },
+      {
+        "name": "QQQ 731",
+        "price": 30302.09
+      },
+      {
+        "name": "QQQ 731.5",
+        "price": 30322.82
+      },
+      {
+        "name": "QQQ 732",
+        "price": 30343.54
+      },
+      {
+        "name": "QQQ 732.5",
+        "price": 30364.27
+      },
+      {
+        "name": "QQQ 733.5 [+++]",
+        "price": 30405.72
+      },
+      {
+        "name": "QQQ 734",
+        "price": 30426.45
+      },
+      {
+        "name": "QQQ 734.5",
+        "price": 30447.18
+      },
+      {
+        "name": "QQQ 735.5",
+        "price": 30488.63
+      },
+      {
+        "name": "QQQ 736",
+        "price": 30509.35
+      },
+      {
+        "name": "QQQ 736.5",
+        "price": 30530.08
+      },
+      {
+        "name": "QQQ 737 [+]",
+        "price": 30550.81
+      },
+      {
+        "name": "QQQ 737.5",
+        "price": 30571.53
+      },
+      {
+        "name": "QQQ 738",
+        "price": 30592.26
+      },
+      {
+        "name": "QQQ 738.5 [+++]",
+        "price": 30612.99
+      },
+      {
+        "name": "QQQ 739 [+]",
+        "price": 30633.71
+      },
+      {
+        "name": "QQQ 739.5",
+        "price": 30654.44
+      },
+      {
+        "name": "QQQ 740.5",
+        "price": 30695.89
+      },
+      {
+        "name": "QQQ 741",
+        "price": 30716.62
+      },
+      {
+        "name": "QQQ 741.5",
+        "price": 30737.35
+      },
+      {
+        "name": "QQQ 742",
+        "price": 30758.07
+      },
+      {
+        "name": "QQQ 742.5",
+        "price": 30778.8
+      }
+    ],
+    "captured_at": "2026-07-04T23:50:15"
+  },
+  "2026-07-02": {
+    "source": "tv_replay",
+    "symbol": "NQ1!",
+    "levels": [
+      {
+        "name": "Call Wall",
+        "price": 30696.76
+      },
+      {
+        "name": "Put Wall",
+        "price": 29037.48
+      },
+      {
+        "name": "Gamma Flip [+++]",
+        "price": 30198.97
+      },
+      {
+        "name": "Call Wall 0DTE",
+        "price": 30074.53
+      },
+      {
+        "name": "Put Wall 0DTE",
+        "price": 29452.3
+      },
+      {
+        "name": "Gamma Flip 0DTE",
+        "price": 29908.6
+      },
+      {
+        "name": "Γ-1",
+        "price": 30281.94
+      },
+      {
+        "name": "Γ-2",
+        "price": 29659.71
+      },
+      {
+        "name": "Γ-3",
+        "price": 30033.05
+      },
+      {
+        "name": "Γ-4 [++]",
+        "price": 30406.38
+      },
+      {
+        "name": "Γ-5",
+        "price": 30489.35
+      },
+      {
+        "name": "Γ-6",
+        "price": 29493.78
+      },
+      {
+        "name": "Γ-7",
+        "price": 30904.17
+      },
+      {
+        "name": "Γ-8",
+        "price": 29244.89
+      },
+      {
+        "name": "Γ-9",
+        "price": 29410.81
+      },
+      {
+        "name": "Γ-10",
+        "price": 30779.72
+      },
+      {
+        "name": "QQQ 718 [++]",
+        "price": 29784.15
+      },
+      {
+        "name": "QQQ 718.5",
+        "price": 29804.89
+      },
+      {
+        "name": "QQQ 719",
+        "price": 29825.64
+      },
+      {
+        "name": "QQQ 719.5",
+        "price": 29846.38
+      },
+      {
+        "name": "QQQ 720",
+        "price": 29867.12
+      },
+      {
+        "name": "QQQ 720.5",
+        "price": 29887.86
+      },
+      {
+        "name": "QQQ 721.5",
+        "price": 29929.34
+      },
+      {
+        "name": "QQQ 722",
+        "price": 29950.08
+      },
+      {
+        "name": "QQQ 722.5 [+++]",
+        "price": 29970.82
+      },
+      {
+        "name": "QQQ 723 [+++]",
+        "price": 29991.56
+      },
+      {
+        "name": "QQQ 723.5",
+        "price": 30012.3
+      },
+      {
+        "name": "QQQ 724.5 [+]",
+        "price": 30053.79
+      },
+      {
+        "name": "QQQ 725.5",
+        "price": 30095.27
+      },
+      {
+        "name": "QQQ 726",
+        "price": 30116.01
+      },
+      {
+        "name": "QQQ 726.5",
+        "price": 30136.75
+      },
+      {
+        "name": "QQQ 727",
+        "price": 30157.49
+      },
+      {
+        "name": "QQQ 727.5 [++]",
+        "price": 30178.23
+      },
+      {
+        "name": "QQQ 728.5",
+        "price": 30219.72
+      },
+      {
+        "name": "QQQ 729",
+        "price": 30240.46
+      },
+      {
+        "name": "QQQ 729.5",
+        "price": 30261.2
+      }
+    ],
+    "captured_at": "2026-07-04T23:50:15"
+  },
+  "2026-07-03": {
+    "source": "tv_replay",
+    "symbol": "NQ1!",
+    "levels": [
+      {
+        "name": "Call Wall",
+        "price": 33156.45
+      },
+      {
+        "name": "Put Wall",
+        "price": 29011.89
+      },
+      {
+        "name": "Gamma Flip",
+        "price": 30172.37
+      },
+      {
+        "name": "Call Wall 0DTE",
+        "price": 30213.81
+      },
+      {
+        "name": "Put Wall 0DTE",
+        "price": 29840.8
+      },
+      {
+        "name": "Gamma Flip 0DTE",
+        "price": 30089.48
+      },
+      {
+        "name": "Γ-1 [++]",
+        "price": 29219.12
+      },
+      {
+        "name": "Γ-2",
+        "price": 29633.57
+      },
+      {
+        "name": "Γ-3",
+        "price": 30048.03
+      },
+      {
+        "name": "Γ-4 [+++]",
+        "price": 29467.79
+      },
+      {
+        "name": "Γ-5",
+        "price": 30006.58
+      },
+      {
+        "name": "Γ-6",
+        "price": 28804.66
+      },
+      {
+        "name": "Γ-7",
+        "price": 28597.44
+      },
+      {
+        "name": "Γ-8",
+        "price": 28390.21
+      },
+      {
+        "name": "Γ-9",
+        "price": 30669.71
+      },
+      {
+        "name": "Γ-10",
+        "price": 30255.26
+      },
+      {
+        "name": "QQQ 708",
+        "price": 29343.46
+      },
+      {
+        "name": "QQQ 708.5",
+        "price": 29364.18
+      },
+      {
+        "name": "QQQ 709",
+        "price": 29384.9
+      },
+      {
+        "name": "QQQ 709.5",
+        "price": 29405.62
+      },
+      {
+        "name": "QQQ 710",
+        "price": 29426.35
+      },
+      {
+        "name": "QQQ 710.5 [+]",
+        "price": 29447.07
+      },
+      {
+        "name": "QQQ 711.5",
+        "price": 29488.52
+      },
+      {
+        "name": "QQQ 712",
+        "price": 29509.24
+      },
+      {
+        "name": "QQQ 712.5 [+]",
+        "price": 29529.96
+      },
+      {
+        "name": "QQQ 713",
+        "price": 29550.68
+      },
+      {
+        "name": "QQQ 713.5",
+        "price": 29571.41
+      },
+      {
+        "name": "QQQ 714",
+        "price": 29592.13
+      },
+      {
+        "name": "QQQ 714.5",
+        "price": 29612.85
+      },
+      {
+        "name": "QQQ 715.5 [++]",
+        "price": 29654.3
+      },
+      {
+        "name": "QQQ 716 [+++]",
+        "price": 29675.02
+      },
+      {
+        "name": "QQQ 716.5",
+        "price": 29695.74
+      },
+      {
+        "name": "QQQ 717",
+        "price": 29716.47
+      },
+      {
+        "name": "QQQ 717.5",
+        "price": 29737.19
+      },
+      {
+        "name": "QQQ 718",
+        "price": 29757.91
+      },
+      {
+        "name": "QQQ 718.5",
+        "price": 29778.63
+      },
+      {
+        "name": "QQQ 719",
+        "price": 29799.36
+      },
+      {
+        "name": "QQQ 719.5",
+        "price": 29820.08
+      }
+    ],
+    "captured_at": "2026-07-04T23:50:15"
   }
 }
