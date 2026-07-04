@@ -51,6 +51,7 @@ Commit work to git regularly throughout a session — after each meaningful chan
    - `mcp__tradingview__capture_screenshot` (region: chart) — grab current chart
    - `mcp__tradingview__data_get_pine_labels` (study_filter: GexSuite) — get live GEX levels
    - Deliver a full market read: gamma regime, nearest levels above/below, session AMD context, intraday bias
+   - Also screenshot the Tradovate panel to read the current account balance, then call `roll_day(balance)` from `data/tradeify_account.py` to establish today's starting balance for the daily-drawdown floor (see "Tradeify account guardrail" below). This only works if run close to session start — a late first call will use a moved balance as the day-start baseline.
 
 4. **Start the 2-minute monitoring loop** using CronCreate:
    - cron: `*/2 * * * 1-5` (every 2 minutes, weekdays only)
@@ -76,6 +77,25 @@ Commit work to git regularly throughout a session — after each meaningful chan
 3. Append a draft row to `my_trades.csv` with those fields filled in and the qualitative columns (`setup_notes`, `gex_level_type`, `level_strength`, `smt_confluence`, `gamma_regime`) left blank.
 4. Tell the user the row was added and ask them to fill in the qualitative context (what they saw, which GEX level, SMT confluence, etc.) — either now or after the session.
 5. Flag that the entry/exit values were read visually off a screenshot, not pulled from a data feed — worth a quick spot-check against the actual fill before treating the row as ground truth for analytics.
+
+## Tradeify account guardrail
+
+Current account: Tradeify funded, $50k, **no consistency rule** (funded phase — the 40% consistency rule only applies during the $3k eval).
+
+**Rules** (`data/tradeify_account.py`):
+- **Trailing EOD drawdown:** $2,000 below the highest EOD closing balance (floor never below −$2,000, since funded balance starts at $0)
+- **Daily drawdown:** $1,000 below today's starting balance
+- **Payout eligibility:** balance ≥ $2,100; payout available = min(balance − 2,100, 1,000)
+
+**Trigger phrases** — "check my buffer" / "check my drawdown" / "can I request a payout" or similar.
+
+**Steps when triggered:**
+1. Screenshot the Tradovate panel and read the current balance.
+2. Call `check_guardrail(balance)` from `data/tradeify_account.py` — it also updates the persisted state (`data/tradeify_state.json`, gitignored).
+3. Report: distance to trailing floor, distance to daily floor, and payout eligibility/amount.
+4. If either floor is close (use judgment — e.g. within ~20% of the drawdown limit) or already breached, say so plainly rather than burying it in the numbers.
+
+**Accuracy depends on `roll_day` having been called at session start** (see step 3 of the trading session startup protocol) — the daily floor is only correct if today's starting balance was captured before any trades that day.
 
 ## Trading assistant context
 
