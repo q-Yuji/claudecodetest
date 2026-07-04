@@ -48,6 +48,83 @@ def load_gex_history() -> dict:
         return json.loads(GEX_HISTORY_FILE.read_text(encoding="utf-8"))
     return {}
 
+
+def classify_level(name: str) -> tuple[str, str]:
+    """Split a GEX label into (type, strength). 'Γ-3 [++]' -> ('Gamma Level', '++')."""
+    m = re.search(r"\[(\+{1,3})\]", name)
+    strength = m.group(1) if m else ""
+    base = re.sub(r"\s*\[\+{1,3}\]", "", name).split("/")[0].strip()
+    if base.startswith("QQQ"):
+        return "QQQ Correlated", strength
+    if base.startswith("Γ-"):
+        return "Gamma Level", strength
+    for typ in ("Gamma Flip 0DTE", "Gamma Flip", "Call Wall 0DTE", "Call Wall",
+                "Put Wall 0DTE", "Put Wall"):
+        if base.startswith(typ):
+            return typ, strength
+    return base, strength
+
+
+# Reaction detection: a touch only counts as tradeable if price actually
+# rejected off the level, not just traded through it.
+REACTION_WINDOW_BARS = 4     # 5m bars after the touch (20 min) to judge the reaction
+BREAK_BEYOND_PTS = 10.0      # close this far past the level = broke through
+MIN_REJECT_PTS = 20.0        # floor for the rejection threshold (vol-scaled above this)
+
+
+def analyse_level_reactions(df_5m: pd.DataFrame, trading_day: date,
+                            levels: list[dict]) -> list[dict]:
+    """
+    For each GEX level, walk the day's NY-session 5m bars and classify every
+    distinct touch: 'reject' (price reversed off the level by a tradeable
+    amount), 'break' (closed through and kept going), or 'chop' (touched,
+    no meaningful reaction). Returns copies of the level dicts with a
+    'reactions' list attached.
+    """
+    ny_start = datetime.combine(trading_day, NY_START, tzinfo=ET)
+    ny_end   = datetime.combine(trading_day, NY_END,   tzinfo=ET)
+    ny = df_5m[(df_5m.index >= ny_start) & (df_5m.index < ny_end)]
+
+    out = []
+    if len(ny) < REACTION_WINDOW_BARS + 2:
+        return [dict(lv, reactions=[]) for lv in levels]
+
+    # rejection threshold scales with the day's volatility: 2x the median
+    # 5m bar range, floored at MIN_REJECT_PTS
+    med_range = float((ny["high"] - ny["low"]).median())
+    reject_pts = max(MIN_REJECT_PTS, 2.0 * med_range)
+
+    for lv in levels:
+        price = lv["price"]
+        reactions = []
+        i = 1
+        while i < len(ny):
+            bar = ny.iloc[i]
+            if not (bar["low"] <= price <= bar["high"]):
+                i += 1
+                continue
+            side = "above" if float(ny.iloc[i - 1]["close"]) >= price else "below"
+            fwd = ny.iloc[i + 1 : i + 1 + REACTION_WINDOW_BARS]
+            closes = [float(bar["close"])] + [float(c) for c in fwd["close"]]
+
+            if side == "above":
+                broke = any(c < price - BREAK_BEYOND_PTS for c in closes)
+                move = (float(fwd["high"].max()) if len(fwd) else float(bar["high"])) - price
+            else:
+                broke = any(c > price + BREAK_BEYOND_PTS for c in closes)
+                move = price - (float(fwd["low"].min()) if len(fwd) else float(bar["low"]))
+
+            outcome = "break" if broke else ("reject" if move >= reject_pts else "chop")
+            reactions.append({
+                "time":     ny.index[i].strftime("%H:%M"),
+                "side":     side,
+                "outcome":  outcome,
+                "move_pts": round(move, 1),
+            })
+            i += 1 + REACTION_WINDOW_BARS  # skip the window so one episode = one touch
+        out.append(dict(lv, reactions=reactions))
+    return out
+
 ET = ZoneInfo("America/New_York")
 
 # ── Session windows (ET) ───────────────────────────────────────────────────────
@@ -415,7 +492,14 @@ h1{font-size:16px;font-weight:700;color:var(--accent);letter-spacing:.15em;margi
 .gex-row:last-child{border-bottom:none}
 .gex-key{color:var(--muted)}
 .gex-val{color:var(--text);font-variant-numeric:tabular-nums}
-.gex-hit{color:var(--yellow);font-size:9px;letter-spacing:.08em;text-transform:uppercase;margin-left:6px}
+.gex-rej{color:var(--green);font-size:9px;letter-spacing:.05em;text-transform:uppercase;margin-left:6px}
+.gex-break{color:var(--red);font-size:9px;letter-spacing:.05em;text-transform:uppercase;margin-left:6px}
+.gex-chop{color:var(--muted);font-size:9px;letter-spacing:.05em;text-transform:uppercase;margin-left:6px}
+.rx-table{width:100%;border-collapse:collapse;font-size:11px;margin-bottom:24px;background:var(--card);border:1px solid var(--border);border-radius:8px}
+.rx-table th{text-align:left;font-size:9px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;padding:8px 12px;border-bottom:1px solid var(--border)}
+.rx-table td{padding:6px 12px;border-bottom:1px solid var(--subtle);color:var(--text)}
+.rx-table tr:last-child td{border-bottom:none}
+.rx-table .num{text-align:right;font-variant-numeric:tabular-nums}
 .summary-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:24px}
 .s-card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 14px}
 .s-label{font-size:9px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin-bottom:4px}
@@ -439,6 +523,54 @@ def build_report(days: list[dict], generated: str) -> str:
   <div class="s-card"><div class="s-label">FBOS (15m)</div><div class="s-val">{total_fbos}</div></div>
   <div class="s-card"><div class="s-label">SMT Signals</div><div class="s-val">{total_smt}</div></div>
 </div>"""
+
+    # Aggregate level reactions by type and by strength modifier across all days
+    def _aggregate(key_fn):
+        agg = {}
+        for d in days:
+            if not d.get("gex"):
+                continue
+            for lv in d["gex"]["levels"]:
+                key = key_fn(lv)
+                if key is None:
+                    continue
+                a = agg.setdefault(key, {"touch": 0, "reject": 0, "break": 0, "chop": 0, "moves": []})
+                for r in lv.get("reactions", []):
+                    a["touch"] += 1
+                    a[r["outcome"]] += 1
+                    if r["outcome"] == "reject":
+                        a["moves"].append(r["move_pts"])
+        return agg
+
+    def _rx_rows(agg, order=None):
+        keys = order if order else sorted(agg, key=lambda k: -agg[k]["touch"])
+        rows = []
+        for k in keys:
+            a = agg.get(k)
+            if not a or not a["touch"]:
+                continue
+            rej_rate = 100.0 * a["reject"] / a["touch"]
+            avg_move = sum(a["moves"]) / len(a["moves"]) if a["moves"] else 0
+            rows.append(
+                f'<tr><td>{k}</td><td class="num">{a["touch"]}</td>'
+                f'<td class="num">{a["reject"]}</td><td class="num">{a["break"]}</td>'
+                f'<td class="num">{a["chop"]}</td><td class="num">{rej_rate:.0f}%</td>'
+                f'<td class="num">{avg_move:.0f}</td></tr>'
+            )
+        return "".join(rows)
+
+    by_type = _aggregate(lambda lv: classify_level(lv["name"])[0])
+    by_strength = _aggregate(
+        lambda lv: f"[{classify_level(lv['name'])[1]}]" if classify_level(lv["name"])[1] else "no modifier"
+    )
+    rx_header = ('<tr><th>Level</th><th class="num">Touches</th><th class="num">Rejected</th>'
+                 '<th class="num">Broke</th><th class="num">Chop</th><th class="num">Rej %</th>'
+                 '<th class="num">Avg Rej (pts)</th></tr>')
+    if by_type:
+        summary += f"""
+<h2 style="font-size:13px;margin:8px 0">GEX Level Reactions — NY session, 5m bars (reject = reversal off the level; break = closed through)</h2>
+<table class="rx-table">{rx_header}{_rx_rows(by_type)}</table>
+<table class="rx-table">{rx_header}{_rx_rows(by_strength, order=["[+++]", "[++]", "[+]", "no modifier"])}</table>"""
 
     cards = []
     for d in days:
@@ -514,10 +646,20 @@ def build_report(days: list[dict], generated: str) -> str:
 
             rows = []
             for lv in levels:
-                hit = ny_hi and ny_lo and ny_lo <= lv["price"] <= ny_hi
-                hit_html = '<span class="gex-hit">hit</span>' if hit else ""
+                rx = lv.get("reactions", [])
+                n_rej = sum(1 for r in rx if r["outcome"] == "reject")
+                n_brk = sum(1 for r in rx if r["outcome"] == "break")
+                n_chp = sum(1 for r in rx if r["outcome"] == "chop")
+                tags = ""
+                if n_rej:
+                    best = max(r["move_pts"] for r in rx if r["outcome"] == "reject")
+                    tags += f'<span class="gex-rej">rej ×{n_rej} · {best:.0f}pts</span>'
+                if n_brk:
+                    tags += f'<span class="gex-break">broke ×{n_brk}</span>'
+                if n_chp and not n_rej and not n_brk:
+                    tags += '<span class="gex-chop">chop</span>'
                 rows.append(
-                    f'<div class="gex-row"><span class="gex-key">{lv["name"]}{hit_html}</span>'
+                    f'<div class="gex-row"><span class="gex-key">{lv["name"]}{tags}</span>'
                     f'<span class="gex-val">{lv["price"]:,.2f}</span></div>'
                 )
             gex_html = regime_html + "".join(rows)
@@ -592,10 +734,18 @@ def main():
               f"FBOS={result['fbos_bull']+result['fbos_bear']}  "
               f"SMT={result['smt_bull']+result['smt_bear']}")
 
-    # Attach historical GEX levels captured via TV replay (Phase 2)
+    # Attach historical GEX levels captured via TV replay (Phase 2),
+    # with per-level reaction analysis (reject / break / chop) on 5m bars
     gex_history = load_gex_history()
+    df_5m_nq = data["NQ"]["5m"]
     for d in days:
-        d["gex"] = gex_history.get(d["date"])
+        entry = gex_history.get(d["date"])
+        if entry:
+            entry = dict(entry)
+            entry["levels"] = analyse_level_reactions(
+                df_5m_nq, date.fromisoformat(d["date"]), entry["levels"]
+            )
+        d["gex"] = entry
     n_gex = sum(1 for d in days if d["gex"])
     print(f"\n  GEX history: {n_gex}/{len(days)} days have replay-captured levels")
 
