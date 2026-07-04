@@ -78,6 +78,16 @@ Commit work to git regularly throughout a session — after each meaningful chan
 4. Tell the user the row was added and ask them to fill in the qualitative context (what they saw, which GEX level, SMT confluence, etc.) — either now or after the session.
 5. Flag that the entry/exit values were read visually off a screenshot, not pulled from a data feed — worth a quick spot-check against the actual fill before treating the row as ground truth for analytics.
 
+## End-of-day journal — AUTOMATED PROTOCOL
+
+**Trigger phrases** — "write my journal" / "journal the day" / "wrap up the session" / "end of day" or similar, near the end of a trading session.
+
+**Steps when triggered:**
+1. Run `python make_journal.py` — generates a draft `journal/YYYY-MM-DD.md` from that day's `my_trades.csv` rows (points, gross P&L, R-multiple computed), the Tradeify guardrail state, and same-day market context from `results/morning_brief.json` + `results/gex_levels.json`. It refuses to overwrite an existing entry; pass `--force` only if the user confirms regeneration.
+2. Fill in the qualitative placeholder sections (`Execution`, `Exit rationale`, `What went right / what to review`) from what was discussed during the session — trade-logging conversations, monitoring observations. Ask the user about anything not covered rather than inventing narrative.
+3. If any `my_trades.csv` rows for today still have blank qualitative columns (`setup_notes`, `gex_level_type`, etc.), prompt the user to fill them now while memory is fresh, and mirror the answers into both the CSV and the journal.
+4. Commit the journal entry (journal files are tracked — they're the durable record).
+
 ## Tradeify account guardrail
 
 Current account: Tradeify funded, $50k, **no consistency rule** (funded phase — the 40% consistency rule only applies during the $3k eval).
