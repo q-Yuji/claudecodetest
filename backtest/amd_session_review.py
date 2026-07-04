@@ -38,6 +38,16 @@ from strategies.chinaV3 import (
 RESULTS_DIR = Path(__file__).parent.parent / "results"
 RESULTS_DIR.mkdir(exist_ok=True)
 
+# Historical GEX levels captured via TV replay (Phase 2) — tracked in git,
+# keyed by ISO date: {"levels": [{"name", "price"}], "captured_at", "source"}
+GEX_HISTORY_FILE = Path(__file__).parent / "gex_history.json"
+
+
+def load_gex_history() -> dict:
+    if GEX_HISTORY_FILE.exists():
+        return json.loads(GEX_HISTORY_FILE.read_text(encoding="utf-8"))
+    return {}
+
 ET = ZoneInfo("America/New_York")
 
 # ── Session windows (ET) ───────────────────────────────────────────────────────
@@ -401,6 +411,11 @@ h1{font-size:16px;font-weight:700;color:var(--accent);letter-spacing:.15em;margi
 .amd-note{font-size:11px;color:var(--text);padding:3px 0;border-bottom:1px solid var(--subtle)}
 .amd-note:last-child{border-bottom:none}
 .gex-note{font-size:11px;color:var(--muted);font-style:italic;padding:4px 0}
+.gex-row{display:flex;justify-content:space-between;font-size:11px;padding:2px 0;border-bottom:1px solid var(--subtle)}
+.gex-row:last-child{border-bottom:none}
+.gex-key{color:var(--muted)}
+.gex-val{color:var(--text);font-variant-numeric:tabular-nums}
+.gex-hit{color:var(--yellow);font-size:9px;letter-spacing:.08em;text-transform:uppercase;margin-left:6px}
 .summary-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:24px}
 .s-card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 14px}
 .s-label{font-size:9px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin-bottom:4px}
@@ -482,8 +497,33 @@ def build_report(days: list[dict], generated: str) -> str:
             dir_sym = "↑" if bc["direction"] == "bull" else "↓"
             bc_html += _tag(f"{bc['time']} {dir_sym} {bc['range_pts']}pts ({bc['atr_mult']}×ATR)", "big-candle")
 
-        # GEX
-        gex_html = f'<div class="gex-note">{d["gex_notes"] if d["gex_notes"] else "GEX levels not yet populated — run TV replay for this date"}</div>'
+        # GEX — replay-captured levels if available, else placeholder note
+        gex = d.get("gex")
+        if gex and gex.get("levels"):
+            levels = sorted(gex["levels"], key=lambda lv: lv["price"], reverse=True)
+            ny_hi, ny_lo, ny_close = d["ny_high"], d["ny_low"], d["ny_close"]
+
+            flip = next((lv for lv in levels
+                         if lv["name"].lower().startswith("gamma flip")
+                         and "0dte" not in lv["name"].lower()), None)
+            regime_html = ""
+            if flip and ny_close:
+                regime = "negative" if ny_close < flip["price"] else "positive"
+                cls = "bearish" if regime == "negative" else "bullish"
+                regime_html = f'<div class="bias-chip {cls}" style="margin-bottom:6px">{regime} gamma (close vs flip)</div>'
+
+            rows = []
+            for lv in levels:
+                hit = ny_hi and ny_lo and ny_lo <= lv["price"] <= ny_hi
+                hit_html = '<span class="gex-hit">hit</span>' if hit else ""
+                rows.append(
+                    f'<div class="gex-row"><span class="gex-key">{lv["name"]}{hit_html}</span>'
+                    f'<span class="gex-val">{lv["price"]:,.2f}</span></div>'
+                )
+            gex_html = regime_html + "".join(rows)
+        else:
+            note = d["gex_notes"] or "GEX levels not yet populated — run TV replay for this date"
+            gex_html = f'<div class="gex-note">{note}</div>'
 
         right_html = f"""
         <div class="section">
@@ -551,6 +591,13 @@ def main():
         print(f"    bias={result['day_bias']}  {sweep_str}  "
               f"FBOS={result['fbos_bull']+result['fbos_bear']}  "
               f"SMT={result['smt_bull']+result['smt_bear']}")
+
+    # Attach historical GEX levels captured via TV replay (Phase 2)
+    gex_history = load_gex_history()
+    for d in days:
+        d["gex"] = gex_history.get(d["date"])
+    n_gex = sum(1 for d in days if d["gex"])
+    print(f"\n  GEX history: {n_gex}/{len(days)} days have replay-captured levels")
 
     # Save HTML
     generated = datetime.now().strftime("%Y-%m-%d %H:%M")

@@ -1,0 +1,69 @@
+{
+  "2026-06-24": {
+    "captured_at": "2026-06-24T13:33:29",
+    "source": "live_capture",
+    "symbol": "NQ1!",
+    "levels": [
+      {
+        "name": "Call Wall",
+        "price": 33242.8
+      },
+      {
+        "name": "Call Wall 0DTE",
+        "price": 30666.48
+      },
+      {
+        "name": "Gamma Flip 0DTE",
+        "price": 30583.38
+      },
+      {
+        "name": "Gamma Flip",
+        "price": 30437.94
+      },
+      {
+        "name": "Γ-9",
+        "price": 30417.16
+      },
+      {
+        "name": "Γ-8",
+        "price": 30334.06
+      },
+      {
+        "name": "Γ-10",
+        "price": 30209.39
+      },
+      {
+        "name": "Γ-5",
+        "price": 30167.84
+      },
+      {
+        "name": "Γ-4",
+        "price": 30126.29
+      },
+      {
+        "name": "Γ-1",
+        "price": 29918.52
+      },
+      {
+        "name": "Γ-3",
+        "price": 29710.75
+      },
+      {
+        "name": "Γ-2",
+        "price": 29295.22
+      },
+      {
+        "name": "Put Wall / Put Wall 0DTE",
+        "price": 29087.45
+      },
+      {
+        "name": "Γ-7",
+        "price": 28879.68
+      },
+      {
+        "name": "Γ-6",
+        "price": 28671.92
+      }
+    ]
+  }
+}
