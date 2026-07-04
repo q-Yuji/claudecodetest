@@ -28,8 +28,10 @@ def load_my_trades() -> pd.DataFrame:
     df["exit_price"] = pd.to_numeric(df["exit_price"], errors="coerce")
     df = df.dropna(subset=["entry", "stop", "exit_price"])
 
-    # Infer contracts (2 standard, assume all standard for now)
-    df["contracts"] = 2
+    if "contracts" in df.columns:
+        df["contracts"] = pd.to_numeric(df["contracts"], errors="coerce").fillna(1)
+    else:
+        df["contracts"] = 1
 
     # Calculate P&L
     def calc_pnl(row):
@@ -110,6 +112,20 @@ def print_stats(df: pd.DataFrame):
     print(f"    Max  : {df['stop_pts'].max():.1f} pts")
     print(f"    Avg  : {df['stop_pts'].mean():.1f} pts")
 
+    def breakdown(col: str, label: str):
+        if col not in df.columns or df[col].dropna().empty:
+            return
+        print(f"\n  By {label}:")
+        for val in df[col].dropna().unique():
+            s = df[df[col] == val]
+            wr = (s["outcome"] == "win").mean() * 100
+            print(f"    {str(val):16s} : {len(s)} trades  {wr:.0f}% WR  ${s['pnl'].sum():,.0f} net")
+
+    breakdown("gex_level_type", "GEX level type")
+    breakdown("level_strength", "level strength")
+    breakdown("smt_confluence", "SMT confluence")
+    breakdown("gamma_regime", "gamma regime")
+
     print()
 
 
@@ -140,7 +156,7 @@ def main():
     import json
     with open(out, "w") as f:
         json.dump(summary, f, indent=2, default=str)
-    print(f"  Summary saved → {out.relative_to(Path(__file__).parent)}")
+    print(f"  Summary saved -> {out.relative_to(Path(__file__).parent)}")
 
 
 if __name__ == "__main__":
