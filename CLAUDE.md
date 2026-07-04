@@ -22,6 +22,13 @@ Three files, each with a distinct responsibility:
 
 Commit work to git regularly throughout a session — after each meaningful change, not just at the end. Push to GitHub (`git push`) so there is always an up-to-date remote backup. Use clean, descriptive commit messages that explain *why* the change was made. A Stop hook in `~/.claude/settings.json` auto-pushes on session end, but don't rely on that alone — commit and push at logical checkpoints.
 
+## Repo hygiene
+
+- `__pycache__/` and `*.pyc` are gitignored — never commit compiled bytecode.
+- `results/morning_brief.html`, `results/morning_brief.json`, `results/amd_review.html`, `results/amd_review.json`, `results/gex_spy.png`, and `results/gex_levels.json` are gitignored: they're fully overwritten every run and have no diff value. The durable record of trading activity lives in `journal/` and `my_trades.csv`, not these.
+- `results/chinaV3_indicator.pine` and `results/chinaV3_results.json` **are** tracked deliberately — the Pine script is source code, and the backtest results are worth versioning alongside strategy changes so performance can be diffed across iterations.
+- When adding new generated output files, default to gitignoring them unless there's a specific reason to version the history.
+
 ## Trading session startup — AUTOMATED PROTOCOL
 
 **Trigger phrases** — when the user says any of the following, execute the full startup sequence below automatically without asking for confirmation:
