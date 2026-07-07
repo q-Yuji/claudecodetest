@@ -103,7 +103,7 @@ Current account: Tradeify **$50k sim-funded** (eval passed 2026-07-07; fresh fun
 - **Daily drawdown (funded phase ONLY):** $1,000 below today's starting balance. **Evals have no daily loss limit** — during the eval, the trailing EOD floor is the only drawdown constraint.
 
 **Funded-phase payout rules (dormant until eval is passed):**
-- **Payout eligibility:** balance ≥ $2,100; payout available = min(balance − 2,100, 1,000)
+- **Payout eligibility:** balance ≥ $2,100; payout available = min(balance − 2,100, 1,000); payouts can be requested **daily** (confirmed 2026-07-07)
 
 **Trigger phrases** — "check my buffer" / "check my drawdown" / "how far from passing" or similar.
 
