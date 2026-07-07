@@ -25,5 +25,7 @@ date,time_utc,asset,direction,contracts,entry,stop,target,exit_price,outcome,ses
 # 2026-01-16,14:00,NQ,long,1,25770,25762,25891,25762,loss,nyam,SMT long retap failed,Call Wall,,no,positive
 2026-06-24,,NQ,short,1,29837.50,29845,,29762.50,win,,ES Gamma-5 [+] resistance + 1min SMT divergence ES/NQ; short into NQ supply zone,Gamma Level 5,+,yes,negative
 2026-07-06,13:39,NQ,long,1,29856,29835,29903,29903,win,nyam,Bullish day bias - expected higher so looking for any retrace; opening FBO swept into OTE range + Put Wall 0DTE / QQQ 719.5 [+++] confluence; long on second defense of the wall,0DTE Put Wall,++,no,negative
-2026-07-07,13:33,NQ,short,1,29542.5,,29490,,loss,nyam,,,,,negative
-2026-07-07,13:39,NQ,short,1,29493.5,29513.5,29423.5,29513.5,loss,nyam,,,,,negative
+2026-07-07,13:33,NQ,short,1,29542.5,29567.5,29490,29567.5,loss,nyam,[eval acct - fills reconstructed from screenshots; eval closed] chased breakdown after Asia Low break already extended; stopped on first pullback,,,,negative
+2026-07-07,13:39,NQ,short,1,29493.5,29513.5,29423.5,29513.5,loss,nyam,[eval acct - reconstructed] revenge re-entry; market short directly into G-8/QQQ710.5/G-6 support cluster; 20pt stop inside noise,Gamma Level 8,,no,negative
+2026-07-07,13:48,NQ,short,1,29563,29650,29450,29450,win,nyam,[eval acct - reconstructed; PASSED EVAL on this trade] sell limit at broken QQQ714.5 shelf retest from below; stop trailed to BE then locked; TP front-ran the 29430-29472 cluster; filled on 3rd test breaking,QQQ 714.5 level,++,no,negative
+2026-07-07,14:10,NQ,short,1,29412,29455,29245,29245,win,nyam,[FUNDED acct day 1 - spot-check fills vs Tradovate] short on confirmed G-6 29430 break (consecutive 1m closes below); stop behind QQQ710.5 then ratcheted 29395/29378; TP front-ran Gamma-9 29223; filled on 4th test of 29244-64 floor,Gamma Level 6,+,no,negative
