@@ -12,10 +12,11 @@ Eval pass rules (PHASE = "eval"):
                             best_day / 0.40.
   - No payouts during eval.
 
-Drawdown rules (both phases):
+Drawdown rules:
   - Trailing EOD drawdown : $2,000 below the highest EOD closing balance
-                            (floor never below -$2,000)
-  - Daily drawdown        : $1,000 below today's starting balance
+                            (floor never below -$2,000) — both phases
+  - Daily drawdown        : $1,000 below today's starting balance —
+                            FUNDED PHASE ONLY (evals have no daily loss limit)
 
 Funded-phase payout rules (dormant until PHASE = "funded"):
   - Payout eligibility    : balance >= $2,100
@@ -140,16 +141,19 @@ def check_guardrail(current_balance: float) -> dict:
     state = record_reading(current_balance)
 
     trailing_floor = state["highest_eod_balance"] - TRAILING_DRAWDOWN
-    daily_floor = state["day_start_balance"] - DAILY_DRAWDOWN
 
     result = {
         "phase": PHASE,
         "current_balance": current_balance,
         "trailing_floor": trailing_floor,
         "distance_to_trailing_floor": current_balance - trailing_floor,
-        "daily_floor": daily_floor,
-        "distance_to_daily_floor": current_balance - daily_floor,
     }
+
+    # Daily loss limit only exists on funded accounts; evals have none.
+    if PHASE == "funded":
+        daily_floor = state["day_start_balance"] - DAILY_DRAWDOWN
+        result["daily_floor"] = daily_floor
+        result["distance_to_daily_floor"] = current_balance - daily_floor
 
     if PHASE == "eval":
         result["eval"] = _eval_progress(current_balance, state)
@@ -173,7 +177,8 @@ def print_guardrail(current_balance: float):
     print(f"{'-'*46}")
     print(f"  Current balance         : ${r['current_balance']:,.2f}")
     print(f"  Trailing EOD floor      : ${r['trailing_floor']:,.2f}  ({r['distance_to_trailing_floor']:+,.2f} cushion)")
-    print(f"  Daily floor             : ${r['daily_floor']:,.2f}  ({r['distance_to_daily_floor']:+,.2f} cushion)")
+    if "daily_floor" in r:
+        print(f"  Daily floor             : ${r['daily_floor']:,.2f}  ({r['distance_to_daily_floor']:+,.2f} cushion)")
     if r["phase"] == "eval":
         e = r["eval"]
         if e["passed"]:

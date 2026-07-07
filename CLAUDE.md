@@ -98,9 +98,9 @@ Current account: Tradeify **$50k eval** (not yet funded, as of 2026-07-07). Bala
 - **40% consistency rule:** no single day's profit may exceed 40% of total profit at the time of passing. Overshooting a day doesn't fail the eval — it just raises the required total to `best_day / 0.40`.
 - **No payouts during eval.** The payout rules below only apply after passing, in the funded phase.
 
-**Drawdown rules (both phases):**
-- **Trailing EOD drawdown:** $2,000 below the highest EOD closing balance (floor never below −$2,000)
-- **Daily drawdown:** $1,000 below today's starting balance
+**Drawdown rules:**
+- **Trailing EOD drawdown (both phases):** $2,000 below the highest EOD closing balance (floor never below −$2,000)
+- **Daily drawdown (funded phase ONLY):** $1,000 below today's starting balance. **Evals have no daily loss limit** — during the eval, the trailing EOD floor is the only drawdown constraint.
 
 **Funded-phase payout rules (dormant until eval is passed):**
 - **Payout eligibility:** balance ≥ $2,100; payout available = min(balance − 2,100, 1,000)
