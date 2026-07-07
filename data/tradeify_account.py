@@ -40,7 +40,7 @@ from pathlib import Path
 
 STATE_FILE = Path(__file__).parent / "tradeify_state.json"
 
-PHASE = "eval"  # flip to "funded" once the eval is passed
+PHASE = "funded"  # eval passed 2026-07-07
 
 TRAILING_DRAWDOWN = 2000.0
 DAILY_DRAWDOWN = 1000.0

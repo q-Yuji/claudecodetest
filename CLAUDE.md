@@ -91,7 +91,7 @@ Commit work to git regularly throughout a session — after each meaningful chan
 
 ## Tradeify account guardrail
 
-Current account: Tradeify **$50k eval** (not yet funded, as of 2026-07-07). Balances are tracked relative to the $50k base (base = $0).
+Current account: Tradeify **$50k sim-funded** (eval passed 2026-07-07; fresh funded account, state reset that day). Balances are tracked relative to the $50k base (base = $0).
 
 **Eval pass requirements** (`data/tradeify_account.py`, phase = "eval"):
 - **Profit target:** +$3,000 total
