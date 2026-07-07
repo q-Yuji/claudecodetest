@@ -90,19 +90,26 @@ Commit work to git regularly throughout a session — after each meaningful chan
 
 ## Tradeify account guardrail
 
-Current account: Tradeify funded, $50k, **no consistency rule** (funded phase — the 40% consistency rule only applies during the $3k eval).
+Current account: Tradeify **$50k eval** (not yet funded, as of 2026-07-07). Balances are tracked relative to the $50k base (base = $0).
 
-**Rules** (`data/tradeify_account.py`):
-- **Trailing EOD drawdown:** $2,000 below the highest EOD closing balance (floor never below −$2,000, since funded balance starts at $0)
+**Eval pass requirements** (`data/tradeify_account.py`, phase = "eval"):
+- **Profit target:** +$3,000 total
+- **40% consistency rule:** no single day's profit may exceed 40% of total profit at the time of passing. Overshooting a day doesn't fail the eval — it just raises the required total to `best_day / 0.40`.
+- **No payouts during eval.** The payout rules below only apply after passing, in the funded phase.
+
+**Drawdown rules (both phases):**
+- **Trailing EOD drawdown:** $2,000 below the highest EOD closing balance (floor never below −$2,000)
 - **Daily drawdown:** $1,000 below today's starting balance
+
+**Funded-phase payout rules (dormant until eval is passed):**
 - **Payout eligibility:** balance ≥ $2,100; payout available = min(balance − 2,100, 1,000)
 
-**Trigger phrases** — "check my buffer" / "check my drawdown" / "can I request a payout" or similar.
+**Trigger phrases** — "check my buffer" / "check my drawdown" / "how far from passing" or similar.
 
 **Steps when triggered:**
 1. Screenshot the Tradovate panel and read the current balance.
 2. Call `check_guardrail(balance)` from `data/tradeify_account.py` — it also updates the persisted state (`data/tradeify_state.json`, gitignored).
-3. Report: distance to trailing floor, distance to daily floor, and payout eligibility/amount.
+3. Report: distance to trailing floor, distance to daily floor, and eval pass progress (profit still needed, today's consistency-clean pass window).
 4. If either floor is close (use judgment — e.g. within ~20% of the drawdown limit) or already breached, say so plainly rather than burying it in the numbers.
 
 **Accuracy depends on `roll_day` having been called at session start** (see step 3 of the trading session startup protocol) — the daily floor is only correct if today's starting balance was captured before any trades that day.

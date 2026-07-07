@@ -1,17 +1,30 @@
 """
-tradeify_account.py — Track Tradeify funded-account drawdown/payout rules.
+tradeify_account.py — Track Tradeify account drawdown and eval/funded rules.
 
-Rules (funded phase, no consistency rule):
+Current phase: EVAL ($50k account; balances tracked relative to the $50k
+base, so base = $0).
+
+Eval pass rules (PHASE = "eval"):
+  - Profit target         : +$3,000 total
+  - 40% consistency rule  : no single day's profit may exceed 40% of total
+                            profit at the time of passing. Overshooting a day
+                            doesn't fail — it raises the required total to
+                            best_day / 0.40.
+  - No payouts during eval.
+
+Drawdown rules (both phases):
   - Trailing EOD drawdown : $2,000 below the highest EOD closing balance
-                            (floor never below -$2,000, since funded balance
-                            starts at $0)
+                            (floor never below -$2,000)
   - Daily drawdown        : $1,000 below today's starting balance
+
+Funded-phase payout rules (dormant until PHASE = "funded"):
   - Payout eligibility    : balance >= $2,100
   - Payout available      : min(balance - 2100, 1000), if eligible
 
-State (highest EOD balance, today's starting balance) persists in
-tradeify_state.json next to this file, since the trailing floor and daily
-floor depend on history, not just the current balance.
+State (highest EOD balance, today's starting balance, per-day profit
+history for the consistency rule) persists in tradeify_state.json next to
+this file, since the floors and consistency math depend on history, not
+just the current balance.
 
 Usage:
     from data.tradeify_account import check_guardrail, roll_day, record_reading
@@ -26,8 +39,12 @@ from pathlib import Path
 
 STATE_FILE = Path(__file__).parent / "tradeify_state.json"
 
+PHASE = "eval"  # flip to "funded" once the eval is passed
+
 TRAILING_DRAWDOWN = 2000.0
 DAILY_DRAWDOWN = 1000.0
+EVAL_TARGET = 3000.0
+CONSISTENCY_CAP = 0.40
 PAYOUT_BUFFER = 2100.0
 PAYOUT_CAP = 1000.0
 
@@ -36,6 +53,7 @@ _DEFAULT_STATE = {
     "day_start_balance": 0.0,
     "last_seen_balance": 0.0,
     "last_seen_date": None,
+    "daily_profits": {},
 }
 
 
@@ -57,11 +75,17 @@ def roll_day(current_balance: float, today: str | None = None) -> dict:
     """
     today = today or date.today().isoformat()
     state = _load_state()
+    state.setdefault("daily_profits", {})
 
     if state["last_seen_date"] and state["last_seen_date"] != today:
         state["highest_eod_balance"] = max(
             state["highest_eod_balance"], state["last_seen_balance"]
         )
+        # bank the completed day's P&L for the consistency rule
+        closed_pnl = round(
+            state["last_seen_balance"] - state["day_start_balance"], 2
+        )
+        state["daily_profits"][state["last_seen_date"]] = closed_pnl
 
     state["day_start_balance"] = current_balance
     state["last_seen_balance"] = current_balance
@@ -86,38 +110,78 @@ def record_reading(current_balance: float, today: str | None = None) -> dict:
     return state
 
 
+def _eval_progress(current_balance: float, state: dict) -> dict:
+    """Distance to the eval profit target, with 40% consistency math."""
+    day_start = state["day_start_balance"]
+    today_pnl = round(current_balance - day_start, 2)
+    past_days = dict(state.get("daily_profits", {}))
+    best_day = max(list(past_days.values()) + [today_pnl, 0.0])
+
+    # The consistency rule can push the effective target above $3,000:
+    # every day (including the best one) must be <= 40% of the final total.
+    required_total = max(EVAL_TARGET, best_day / CONSISTENCY_CAP)
+
+    # Largest P&L today can reach while still allowing a clean pass at the
+    # $3,000 target: t <= CAP * (day_start + t)  =>  t <= CAP*day_start/(1-CAP)
+    today_clean_cap = round(CONSISTENCY_CAP * day_start / (1 - CONSISTENCY_CAP), 2)
+
+    return {
+        "today_pnl": today_pnl,
+        "best_day_profit": round(best_day, 2),
+        "profit_needed_to_pass": round(max(required_total - current_balance, 0.0), 2),
+        "required_total": round(required_total, 2),
+        "today_consistency_cap": today_clean_cap,
+        "passed": current_balance >= required_total,
+    }
+
+
 def check_guardrail(current_balance: float) -> dict:
-    """Compute floors and payout eligibility against the current balance."""
+    """Compute floors and phase progress against the current balance."""
     state = record_reading(current_balance)
 
     trailing_floor = state["highest_eod_balance"] - TRAILING_DRAWDOWN
     daily_floor = state["day_start_balance"] - DAILY_DRAWDOWN
 
-    payout_eligible = current_balance >= PAYOUT_BUFFER
-    payout_available = (
-        min(current_balance - PAYOUT_BUFFER, PAYOUT_CAP) if payout_eligible else 0.0
-    )
-
-    return {
+    result = {
+        "phase": PHASE,
         "current_balance": current_balance,
         "trailing_floor": trailing_floor,
         "distance_to_trailing_floor": current_balance - trailing_floor,
         "daily_floor": daily_floor,
         "distance_to_daily_floor": current_balance - daily_floor,
-        "payout_eligible": payout_eligible,
-        "payout_available": round(payout_available, 2),
     }
+
+    if PHASE == "eval":
+        result["eval"] = _eval_progress(current_balance, state)
+    else:
+        payout_eligible = current_balance >= PAYOUT_BUFFER
+        payout_available = (
+            min(current_balance - PAYOUT_BUFFER, PAYOUT_CAP)
+            if payout_eligible
+            else 0.0
+        )
+        result["payout_eligible"] = payout_eligible
+        result["payout_available"] = round(payout_available, 2)
+
+    return result
 
 
 def print_guardrail(current_balance: float):
     r = check_guardrail(current_balance)
     print(f"\n{'-'*46}")
-    print(f"  Tradeify Buffer Check")
+    print(f"  Tradeify Buffer Check ({r['phase']})")
     print(f"{'-'*46}")
     print(f"  Current balance         : ${r['current_balance']:,.2f}")
     print(f"  Trailing EOD floor      : ${r['trailing_floor']:,.2f}  ({r['distance_to_trailing_floor']:+,.2f} cushion)")
     print(f"  Daily floor             : ${r['daily_floor']:,.2f}  ({r['distance_to_daily_floor']:+,.2f} cushion)")
-    if r["payout_eligible"]:
+    if r["phase"] == "eval":
+        e = r["eval"]
+        if e["passed"]:
+            print(f"  Eval                    : PASSED (total ${r['current_balance']:,.2f} >= ${e['required_total']:,.2f})")
+        else:
+            print(f"  Eval pass needs         : ${e['profit_needed_to_pass']:,.2f} more (target ${e['required_total']:,.2f})")
+            print(f"  Today so far            : ${e['today_pnl']:+,.2f} (clean-pass cap ${e['today_consistency_cap']:,.2f})")
+    elif r["payout_eligible"]:
         print(f"  Payout available        : ${r['payout_available']:,.2f}")
     else:
         print(f"  Payout eligible         : No (${PAYOUT_BUFFER - r['current_balance']:,.2f} short of ${PAYOUT_BUFFER:,.0f} buffer)")
