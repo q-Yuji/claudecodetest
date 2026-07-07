@@ -76,7 +76,35 @@ TIME_BUCKETS = [
 ]
 
 
-def _dl_5m(ticker: str = "NQ=F") -> pd.DataFrame:
+NQ_FRONT_CONID = 770561204  # Sep 2026 — update at quarterly roll
+
+
+def _dl_5m_ibkr(conid: int = NQ_FRONT_CONID, period: str = "1m") -> pd.DataFrame:
+    """
+    5m bars from the IBKR CP Gateway HMDS endpoint (real CME feed, ~17k
+    bars/call). Needs the gateway running and logged in; raises on any
+    failure so the caller can fall back to yfinance. Only the front-month
+    window is trustworthy — pre-roll far-month bars are ghost prints.
+    """
+    from data.ibkr import _SESSION, BASE_URL
+
+    _SESSION.post(f"{BASE_URL}/hmds/auth/init", timeout=20)
+    r = _SESSION.get(f"{BASE_URL}/hmds/history",
+                     params={"conid": conid, "period": period, "bar": "5min",
+                             "outsideRth": "true"}, timeout=120)
+    r.raise_for_status()
+    bars = [b for b in r.json().get("data", []) if "t" in b]
+    if not bars:
+        raise RuntimeError("HMDS returned no bars")
+    df = pd.DataFrame(bars)
+    df.index = pd.DatetimeIndex(
+        pd.to_datetime(df["t"], unit="ms", utc=True)).tz_convert(ET)
+    df = df.rename(columns={"o": "open", "h": "high", "l": "low",
+                            "c": "close", "v": "volume"})
+    return df[["open", "high", "low", "close", "volume"]].sort_index()
+
+
+def _dl_5m_yf(ticker: str = "NQ=F") -> pd.DataFrame:
     df = yf.download(ticker, period="60d", interval="5m",
                      progress=False, auto_adjust=True)
     if df.empty:
@@ -87,6 +115,16 @@ def _dl_5m(ticker: str = "NQ=F") -> pd.DataFrame:
     df = df[["open", "high", "low", "close", "volume"]].dropna()
     df.index = pd.to_datetime(df.index, utc=True).tz_convert(ET)
     return df.sort_index()
+
+
+def _dl_5m() -> tuple[pd.DataFrame, str]:
+    """IBKR-first, yfinance fallback. Returns (bars, source_tag)."""
+    try:
+        df = _dl_5m_ibkr()
+        return df, "ibkr"
+    except Exception as e:
+        print(f"    (IBKR unavailable: {type(e).__name__} — using yfinance)")
+        return _dl_5m_yf(), "yfinance"
 
 
 def _window(df: pd.DataFrame, start: datetime, end: datetime) -> pd.DataFrame:
@@ -193,6 +231,8 @@ def analyse_session(df: pd.DataFrame, day: date) -> dict | None:
                  datetime.combine(day, NY_START, tzinfo=ET),
                  datetime.combine(day, NY_END, tzinfo=ET))
     if len(ny) < 30:  # partial NY session — skip (holiday/short day)
+        return None
+    if ny.index[-1].time() < time(15, 30):  # early close (half-day) — skip
         return None
 
     hl = _session_hl(df, day)
@@ -335,12 +375,13 @@ def main():
         ds = {"meta": {"dataset_version": DATASET_VERSION, "instrument": "NQ=F"},
               "sessions": {}}
 
-    print("  Downloading NQ 5m (60d)...")
-    df = _dl_5m()
+    print("  Downloading NQ 5m...")
+    df, source = _dl_5m()
     if df.empty:
         print("ERROR: no data.")
         return
-    print(f"    {len(df)} bars, {df.index[0]:%Y-%m-%d} -> {df.index[-1]:%Y-%m-%d}")
+    print(f"    {len(df)} bars ({source}), "
+          f"{df.index[0]:%Y-%m-%d} -> {df.index[-1]:%Y-%m-%d}")
 
     all_days = sorted({ts.date() for ts in df.index if ts.weekday() < 5})
     added = 0
@@ -350,6 +391,7 @@ def main():
             continue
         rec = analyse_session(df, day)
         if rec:
+            rec["source"] = source
             ds["sessions"][key] = rec
             added += 1
 
