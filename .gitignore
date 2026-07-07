@@ -8,4 +8,6 @@ results/amd_review.json
 results/gex_spy.png
 results/gex_levels.json
 results/my_trades_summary.json
+results/session_stats_summary.json
+results/stats_card.html
 data/tradeify_state.json

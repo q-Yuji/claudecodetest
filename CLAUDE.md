@@ -27,6 +27,7 @@ Commit work to git regularly throughout a session — after each meaningful chan
 - `__pycache__/` and `*.pyc` are gitignored — never commit compiled bytecode.
 - `results/morning_brief.html`, `results/morning_brief.json`, `results/amd_review.html`, `results/amd_review.json`, `results/gex_spy.png`, and `results/gex_levels.json` are gitignored: they're fully overwritten every run and have no diff value. The durable record of trading activity lives in `journal/` and `my_trades.csv`, not these.
 - `results/chinaV3_indicator.pine` and `results/chinaV3_results.json` **are** tracked deliberately — the Pine script is source code, and the backtest results are worth versioning alongside strategy changes so performance can be diffed across iterations.
+- `backtest/session_stats_dataset.json` **is** tracked deliberately — it's the append-only per-session dataset behind the SweepStats product idea (`backtest/session_stats.py`); the whole point is that it compounds across runs. Its derived outputs (`results/session_stats_summary.json`, `results/stats_card.html`) are gitignored like other regenerated files.
 - When adding new generated output files, default to gitignoring them unless there's a specific reason to version the history.
 
 ## Trading session startup — AUTOMATED PROTOCOL
