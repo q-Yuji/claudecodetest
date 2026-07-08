@@ -10,6 +10,11 @@
 ;
 ; Install: create a shortcut to this script in the Startup folder
 ; (Win+R -> shell:startup), same as scripts/log_trade_hotkey.ahk (F11).
+;
+; KEYBOARD QUIRK (verified 2026-07-08): this keyboard's F-keys default to
+; the media layer — bare F8 sends Media_Play_Pause (pauses Spotify!), so
+; the hotkey only fires on Fn+F8. Enable Fn Lock (usually Fn+Esc) to make
+; bare F8 work.
 F8:: {
     title := WinGetTitle("A")
     if (StrLen(title) > 60)

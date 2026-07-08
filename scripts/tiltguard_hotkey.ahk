@@ -13,6 +13,11 @@
 ;
 ; F9 was chosen because F11 is taken by the trade-logging hotkey and
 ; F10/F12 have common conflicts (menu focus / browser dev tools).
+;
+; KEYBOARD QUIRK (verified 2026-07-08): this keyboard's F-keys default to
+; the media layer — bare F9 sends Media_Play_Pause, so the hotkey only
+; fires on Fn+F9. Enable Fn Lock (usually Fn+Esc) to make bare F9 work;
+; a chorded panic button defeats the purpose.
 F9:: {
     Run('python -m tiltguard.main arm', 'C:\Users\lucap\.vscode-shared\claudecodetest', 'Hide')
 }
