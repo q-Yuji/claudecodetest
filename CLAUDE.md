@@ -51,6 +51,7 @@ Commit work to git regularly throughout a session — after each meaningful chan
    - `mcp__tradingview__tv_health_check` — confirm CDP connected
    - `mcp__tradingview__capture_screenshot` (region: chart) — grab current chart
    - `mcp__tradingview__data_get_pine_labels` (study_filter: GexSuite) — get live GEX levels
+   - Write the captured labels to `results/gex_levels.json` (same schema as existing file), then run `python -m backtest.append_gex_history` to bank the day into `backtest/gex_history.json` — do this every session morning; it's the only chance to capture that day's NQ gamma levels before they age out.
    - Deliver a full market read: gamma regime, nearest levels above/below, session AMD context, intraday bias
    - Also screenshot the Tradovate panel to read the current account balance, then call `roll_day(balance)` from `data/tradeify_account.py` to establish today's starting balance for the daily-drawdown floor (see "Tradeify account guardrail" below). This only works if run close to session start — a late first call will use a moved balance as the day-start baseline.
 

@@ -18,4 +18,4 @@ To build one, start a session and say:
 Planner decisions are marked `DECISION:` inside each blueprint; builders
 mark gaps with `ASSUMPTION:` — scan for both before trusting a build.
 
-Status (2026-07-08): #1 tilt-guard-v1 BUILT (by Fable 5 directly — it came back; all DoD checks passed, F9 hotkey needs its Startup shortcut added manually). #2 sweepstats-daily-pipeline BUILT (task "SweepStats Daily" registered, weekdays 18:30; dataset at 47 sessions). #3–5 not built.
+Status (2026-07-08): #1 tilt-guard-v1 BUILT (by Fable 5 directly — it came back; all DoD checks passed, F9 hotkey needs its Startup shortcut added manually). #2 sweepstats-daily-pipeline BUILT (task "SweepStats Daily" registered, weekdays 18:30; dataset at 47 sessions). #4 gex-history-capture BUILT (folded into startup step 3; first real append happens next session morning). #3 and #5 not built.
