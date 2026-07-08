@@ -13,3 +13,5 @@ results/stats_card.html
 results/stats_card.png
 results/stats_card_caption.txt
 data/tradeify_state.json
+backtest/vendor_data/*
+!backtest/vendor_data/README.md
