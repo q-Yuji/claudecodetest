@@ -79,6 +79,10 @@ Commit work to git regularly throughout a session — after each meaningful chan
 4. Tell the user the row was added and ask them to fill in the qualitative context (what they saw, which GEX level, SMT confluence, etc.) — either now or after the session.
 5. Flag that the entry/exit values were read visually off a screenshot, not pulled from a data feed — worth a quick spot-check against the actual fill before treating the row as ground truth for analytics.
 
+## TiltGuard (revenge-trade cooldown)
+
+`F9` (global hotkey, `scripts/tiltguard_hotkey.ahk`) arms a fullscreen topmost cooldown overlay on both monitors — countdown + the user's rules text — dismissible only by the countdown ending or by typing the unlock sentence from `tiltguard/config.json`. CLI equivalents: `python -m tiltguard.main arm [--minutes N]`, and `python -m tiltguard.main check` which reads `data/tradeify_state.json` and arms a cooldown automatically if today's P&L has hit the configured daily loss/win stop. When a stop-out is logged during a session (via "log that trade"), suggest running `python -m tiltguard.main check`.
+
 ## End-of-day journal — AUTOMATED PROTOCOL
 
 **Trigger phrases** — "write my journal" / "journal the day" / "wrap up the session" / "end of day" or similar, near the end of a trading session.

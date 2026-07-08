@@ -1,0 +1,11 @@
+{
+  "cooldown_minutes": 10,
+  "daily_loss_stop": -900.0,
+  "daily_win_stop": 1500.0,
+  "unlock_sentence": "I am flat and I will only enter with a resting order at a level.",
+  "rules_text": [
+    "No market orders after a stop-out.",
+    "Re-entry = resting order at a level, or nothing.",
+    "The thesis being right does not make the entry right."
+  ]
+}

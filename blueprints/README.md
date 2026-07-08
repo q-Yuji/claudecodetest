@@ -18,4 +18,4 @@ To build one, start a session and say:
 Planner decisions are marked `DECISION:` inside each blueprint; builders
 mark gaps with `ASSUMPTION:` — scan for both before trusting a build.
 
-Status: none built yet (as of 2026-07-07).
+Status (2026-07-08): #1 tilt-guard-v1 BUILT (by Fable 5 directly — it came back; all DoD checks passed, F9 hotkey needs its Startup shortcut added manually). #2–5 not built.
