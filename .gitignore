@@ -10,4 +10,6 @@ results/gex_levels.json
 results/my_trades_summary.json
 results/session_stats_summary.json
 results/stats_card.html
+results/stats_card.png
+results/stats_card_caption.txt
 data/tradeify_state.json
