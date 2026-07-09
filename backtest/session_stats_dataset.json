@@ -2793,6 +2793,55 @@
     }
    },
    "source": "yfinance"
+  },
+  "2026-07-08": {
+   "v": 1,
+   "date": "2026-07-08",
+   "weekday": "Wed",
+   "asia_high": 29558.75,
+   "asia_low": 29266.0,
+   "london_high": 29414.75,
+   "london_low": 28957.25,
+   "london_sweep": "asia_low",
+   "ny_open": 29202.75,
+   "ny_high": 29500.0,
+   "ny_low": 29034.0,
+   "ny_close": 29457.75,
+   "ny_direction": "up",
+   "ny_change_pts": 255.0,
+   "first_touch": {
+    "asia_high": null,
+    "asia_low": {
+     "kind": "fakeout",
+     "direction": "long",
+     "time": "09:30",
+     "bucket": "09:30-10:00",
+     "level": 29266.0,
+     "extreme": 29201.0,
+     "overshoot_pts": 65.0,
+     "confirm_close": 29303.5,
+     "mfe_30": 95.5,
+     "mfe_60": 95.5,
+     "mfe_120": 95.5,
+     "mae_120": 167.0
+    },
+    "london_high": {
+     "kind": "break",
+     "direction": "long",
+     "time": "13:20",
+     "bucket": "13:00-16:00",
+     "level": 29414.75,
+     "extreme": 29457.75,
+     "overshoot_pts": 43.0,
+     "confirm_close": 29437.25,
+     "mfe_30": 11.75,
+     "mfe_60": 11.75,
+     "mfe_120": 11.75,
+     "mae_120": 133.5
+    },
+    "london_low": null
+   },
+   "source": "yfinance"
   }
  }
 }
