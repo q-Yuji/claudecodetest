@@ -22,6 +22,59 @@ matched against the compounding dataset, per level, per time of day, with
 follow-through and stop-run distances attached — is the utility. The
 dataset that makes that possible compounds daily and is the moat.
 
+## Demand evidence (2026-07-09 web scan) — who the average trader is and what he pays for
+
+**The target customer is the prop-eval futures trader**, and he is measurably
+desperate in exactly the places this dataset speaks to:
+
+- Eval pass rates run **5–20%**; only **~7% of prop traders ever see a
+  payout**; **~half of funded traders lose the account within 90 days**
+  (quantvps.com / damnpropfirms.com / apextraderfunding.com, 2026 data).
+- **~70% of eval failures are drawdown breaches** (max trailing or daily
+  loss) — not bad analysis, bad risk placement/sizing. This crowd re-buys
+  evals and resets over and over; their pain is denominated in repeated
+  $50–300 fees, so "saves one blown eval" is a self-evident value prop.
+- Stop-run pain is so universal that platforms write education about it
+  (NinjaTrader's liquidity-trap guide: retail stops cluster at prior-day
+  highs/lows and **overnight session extremes** — literally the levels
+  SweepStats measures).
+- What they already pay monthly: TradingView Premium ~$60, NinjaTrader
+  $36–56, order-flow tools $69+, paid Discords **$99–299** for morning
+  bias calls, and — the key comparable — **Edgeful at $49/mo**.
+
+**Edgeful is the proof AND the competitor to beat.** 150+ statistical
+reports (gap fill by gap-size bucket, opening-range breakout, initial
+balance), TradingView integration, alerts, $49/mo ($33 annual). It proves
+traders pay for session statistics at scale. The honest read of the gap:
+
+1. **Language/concept gap** — Edgeful's reports are classic pit-session
+   stats (gaps, ORB, IB). The ICT/SMC generation thinks in *sweeps,
+   liquidity, manipulation, killzones* — SweepStats quantifies THAT
+   vocabulary (fakeout %, London-manipulation bias, overshoot depth).
+   The 2026-07-07 scan already found rigorous ICT-concept statistics
+   don't exist; Edgeful doesn't change that.
+2. **Answer vs library** — Edgeful is a report library you go query; the
+   Situation Room is one pushed page: "here is today's script." Average
+   traders don't want 150 reports, they want to be told what the data
+   says about *today*.
+3. **Prop-awareness gap** — nobody, Edgeful included, translates setup
+   statistics into prop math ("median adverse excursion on this setup is
+   $1,030/contract — that breaches your $1k daily floor on ONE lot").
+   Given 70% of failures are drawdown breaches, this is the feature with
+   the clearest "pays for itself" story.
+4. **Receipts gap** — the self-grading public scoreboard (feature 5)
+   differentiates from both Edgeful (no forward-graded daily call) and
+   the $99–299 Discord gurus (no verifiable track record at all).
+
+**Risk, stated plainly:** Edgeful could add sweep reports any quarter.
+The durable moat is therefore NOT the stat definitions — it's the
+compounding forward-tested record, the prop-risk fusion, the daily-script
+UX, and distribution. Move accordingly: publish the graded record early.
+
+**Pricing anchor:** Edgeful sets the category at $49/mo. Enter at
+$29–39/mo (or free page + paid alerts) — undercut with a sharper wedge
+rather than compete on report count.
+
 ## Feature ladder, ranked by (live-trader utility × uniqueness)
 
 ### 1. "Today's Script" — conditional bias panel  ★ the killer feature
