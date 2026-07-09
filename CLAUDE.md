@@ -84,6 +84,10 @@ Commit work to git regularly throughout a session — after each meaningful chan
 
 `F9` (global hotkey, `scripts/tiltguard_hotkey.ahk`) arms a fullscreen topmost cooldown overlay on both monitors — countdown + the user's rules text — dismissible only by the countdown ending or by typing the unlock sentence from `tiltguard/config.json`. CLI equivalents: `python -m tiltguard.main arm [--minutes N]`, and `python -m tiltguard.main check` which reads `data/tradeify_state.json` and arms a cooldown automatically if today's P&L has hit the configured daily loss/win stop. When a stop-out is logged during a session (via "log that trade"), suggest running `python -m tiltguard.main check`.
 
+## Situation Room
+
+`python situation_room.py` renders `results/situation_room.html` — the dark war-room "NQ Situation Room" page (SweepStats product wrapper, blueprint #6 + roadmap's Today's Script panel) from `results/morning_brief.json`, `results/gex_levels.json`, and `results/session_stats_summary.json`. Flags: `--png` (renders `results/situation_room.png` via a fresh headless Chrome, never the port-9222 one), `--open` (open in browser). Read-only over its inputs; regenerate whenever asked ("open the situation room" / "update the war room"). Panels degrade rather than hide: a missing input shows "NO FEED", a >24h-old input dims with an amber "STALE" chip. Both outputs are gitignored.
+
 ## End-of-day journal — AUTOMATED PROTOCOL
 
 **Trigger phrases** — "write my journal" / "journal the day" / "wrap up the session" / "end of day" or similar, near the end of a trading session.
