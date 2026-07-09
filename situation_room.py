@@ -1,17 +1,18 @@
-"""situation_room.py — NQ Situation Room (SweepStats product wrapper, v2 UI).
+"""situation_room.py — NQ Situation Room (SweepStats product wrapper, v3 UI).
 
-Renders results/situation_room.html: a self-contained dark war-room page
-assembling the repo's regenerated JSONs (morning_brief, gex_levels,
-session_stats_summary) into one fixed 1440px screen. Read-only over its
-inputs; never crashes on a missing/stale/malformed input — panels degrade
-to "NO FEED" or dim with a STALE chip instead.
+Renders results/situation_room.html: a self-contained dark page assembling
+the repo's regenerated JSONs (morning_brief, gex_levels,
+session_stats_summary). Read-only over its inputs; never crashes on a
+missing/stale/malformed input — sections degrade to "NO FEED" or carry a
+STALE marker instead.
 
-v2 UI (2026-07-10): SitDeck-style depth and interactivity — collapsible
-panels, clickable ladder rows that open per-level drawers (stats for
-session levels, interpretation for GEX level types), tabbed stats deck,
-ring-gauge hero, 24h session timeline, wire show-more. Everything is
-inline vanilla JS; opening the HTML with #png in the URL expands all
-sections for screenshot capture.
+v3 UI (2026-07-10): editorial terminal, not a widget dashboard — masthead
+with double rule, scrolling ticker, numbered sections split by hairlines
+on one continuous surface (no cards), condensed display type for verdicts,
+mono strictly for data, tables set like a rate sheet. Interactions kept:
+collapsible sections, clickable ladder rows with detail drawers, stats
+tabs, wire show-more. Opening the HTML with #png expands everything for
+screenshot capture.
 
 Run:
   python situation_room.py [--png] [--open] [--public]
@@ -88,75 +89,151 @@ def chg_cls(x: float) -> str:
     return "up" if x > 0 else "dn" if x < 0 else "flat"
 
 
-def age_chip(age: float | None) -> str:
+def _status(age: float | None, nofeed: bool = False) -> str:
+    if nofeed:
+        return '<span class="st bad">NO FEED</span>'
     if age is None:
         return ""
     if age > STALE_HOURS:
-        return f'<span class="chip stale">STALE · {round(age)}H AGO</span>'
+        return f'<span class="st warn">STALE {round(age)}H</span>'
     label = "LIVE" if age < 1 else f"{round(age)}H AGO"
-    return f'<span class="chip">{label}</span>'
+    return f'<span class="st">{label}</span>'
 
 
-def panel(title: str, body: str, age: float | None = None,
-          extra_chip: str = "", cls: str = "", nofeed: bool = False,
-          collapsible: bool = True) -> str:
-    """Panel card. LED reflects feed state; header click collapses."""
+def section(num: str, title: str, body: str, age: float | None = None,
+            right: str = "", anchor: str = "", nofeed: bool = False) -> str:
+    """Numbered editorial section: running head + hairline, no card box."""
     if nofeed:
-        led, body = "red", '<div class="nofeed">NO FEED</div>'
-    elif age is not None and age > STALE_HOURS:
-        led = "amber"
-    else:
-        led = "green"
+        body = '<div class="nofeed">— NO FEED —</div>'
     stale = age is not None and age > STALE_HOURS
-    head_cls = "phead tgl" if collapsible else "phead"
-    chev = '<span class="chev">▾</span>' if collapsible else ""
     return (
-        f'<section class="panel {cls}">'
-        f'<div class="{head_cls}"><span class="ptitle"><span class="led {led}"></span>'
-        f'{esc(title)}</span>'
-        f'<span class="chips">{extra_chip}{age_chip(age)}{chev}</span></div>'
-        f'<div class="pbody{" stale-dim" if stale else ""}">{body}</div>'
-        f"</section>"
-    )
+        f'<section class="sec" id="{anchor}">'
+        f'<div class="runhead tgl"><span class="rh-l"><i>{num}</i>{esc(title)}'
+        f'<b class="fold">[–]</b></span>'
+        f'<span class="rh-r">{right}{_status(age, nofeed)}</span></div>'
+        f'<div class="secbody{" stale-dim" if stale else ""}">{body}</div>'
+        f"</section>")
 
 
-# ----------------------------------------------------------------- panels
+# ----------------------------------------------------------------- ticker
 
-def build_tape(brief: dict | None, age: float | None) -> str:
+def build_ticker(brief: dict | None) -> str:
     if brief is None:
-        return panel("Tape", "", nofeed=True)
-    ctx = brief.get("ctx", {}) or {}
-    parts = []
-    nq = ctx.get("NQ")
-    if isinstance(nq, dict):
-        c = float(nq.get("chg_pct") or 0)
-        parts.append(
-            '<div class="tape-nq mono"><span class="sym">NQ</span>'
-            f'<span class="px {chg_cls(c)}">{fnum(float(nq.get("last") or 0))}</span>'
-            f'<span class="chg {chg_cls(c)}">{c:+.2f}%</span></div>')
-    for sym in ("ES", "SPY", "QQQ", "VIX"):
+        return ""
+    items = []
+    ctx = brief.get("ctx") or {}
+    for sym in ("NQ", "ES", "SPY", "QQQ", "VIX"):
         q = ctx.get(sym)
         if not isinstance(q, dict):
             continue
         c = float(q.get("chg_pct") or 0)
-        parts.append(
-            f'<div class="tape-q mono"><span class="sym">{sym}</span>'
-            f'<span class="px">{fnum(float(q.get("last") or 0))}</span>'
-            f'<span class="chg {chg_cls(c)}">{c:+.2f}%</span></div>')
-    chips = []
+        arrow = "▲" if c > 0 else "▼" if c < 0 else "—"
+        items.append(f'<span class="ti"><b>{sym}</b> {fnum(float(q.get("last") or 0))} '
+                     f'<span class="{chg_cls(c)}">{arrow} {abs(c):.2f}%</span></span>')
     for sym, s in (brief.get("sectors") or {}).items():
         if not isinstance(s, dict):
             continue
         c = float(s.get("chg_pct") or 0)
-        chips.append(f'<span class="schip mono {chg_cls(c)}">{esc(sym)} {c:+.1f}%</span>')
-    body = ('<div class="tape">' + "".join(parts)
-            + '<div class="sectors">' + "".join(chips) + "</div></div>")
-    return panel("Tape", body, age)
+        items.append(f'<span class="ti">{esc(sym)} '
+                     f'<span class="{chg_cls(c)}">{c:+.1f}%</span></span>')
+    if not items:
+        return ""
+    run = '<span class="sep">/</span>'.join(items)
+    # content doubled so the CSS translate(-50%) loop is seamless
+    return (f'<div class="ticker"><div class="tickrun">'
+            f'<span class="tickseg">{run}{"<span class=sep>/</span>"}</span>'
+            f'<span class="tickseg">{run}{"<span class=sep>/</span>"}</span>'
+            f"</div></div>")
 
+
+# ------------------------------------------------------------------- hero
+
+_SWEEP_KEYS = {"asia high": "asia_high", "asia low": "asia_low",
+               "none": "none", "both": "both"}
+_PATTERN_TITLES = {"asia_high": "London sweeps Asia High.",
+                   "asia_low": "London sweeps Asia Low.",
+                   "none": "No London sweep.",
+                   "both": "London sweeps both sides."}
+_LEVEL_LABELS = {"asia_high": "ASIA HIGH", "asia_low": "ASIA LOW",
+                 "london_high": "LONDON HIGH", "london_low": "LONDON LOW"}
+
+
+def _hero_numbers(summary: dict) -> tuple[int, int, int]:
+    ft = summary.get("first_touch") or {}
+    touched = sum(int(v.get("touched") or 0) for v in ft.values() if isinstance(v, dict))
+    fake = sum(int(v.get("fakeout") or 0) for v in ft.values() if isinstance(v, dict))
+    pct = round(100.0 * fake / touched) if touched else 0
+    return pct, fake, touched
+
+
+def build_hero(gex: dict | None, summary: dict | None) -> str:
+    amd = (gex or {}).get("session_amd") or {}
+    if not amd or summary is None:
+        return section("01", "Today's Script", "", anchor="script", nofeed=True)
+    key = _SWEEP_KEYS.get(str(amd.get("london_sweep") or "none").lower(), "none")
+    lm = (summary.get("london_manipulation") or {}).get(key) or {}
+    days = int(lm.get("days") or 0)
+    up_pct = float(lm.get("ny_up_pct") or 0)
+    med = float(lm.get("median_ny_change_pts") or 0)
+    low_n = ' <span class="lown">low sample</span>' if days < 5 else ""
+    pct, _, touched = _hero_numbers(summary)
+    s = summary.get("sample") or {}
+
+    bias = str(amd.get("day_bias") or "").upper()
+    chips = ""
+    d = str(amd.get("date") or "")
+    if d and d != datetime.now(ET).date().isoformat():
+        chips += f'<span class="tag warn">[ SCRIPT FROM {esc(d)} ]</span>'
+    if bias:
+        chips += (f'<span class="tag {"up" if bias == "BULLISH" else "dn"}">'
+                  f'[ BIAS {esc(bias)} ]</span>')
+
+    kicker = esc(datetime.now(ET).strftime("%A, %B %d %Y").upper())
+    left = (
+        f'<div class="kicker mono">{kicker} · OVERNIGHT PATTERN</div>'
+        f'<h1 class="verdict">{esc(_PATTERN_TITLES[key])}</h1>'
+        f'<p class="dek">On the {days} prior days with this pattern, New York closed '
+        f'<span class="{"up" if up_pct >= 50 else "dn"}">up {up_pct:.0f}% of the time</span> '
+        f'with a median session move of <span class="mono {chg_cls(med)}">{med:+.1f} pts</span>.{low_n}</p>'
+        f'<div class="tags mono">{chips}</div>')
+
+    right = (
+        f'<div class="bigstat"><span class="bignum">{pct}<i>%</i></span>'
+        f'<span class="bigcap mono">FAKEOUT RATE — first NY touches of Asia/London '
+        f'levels<br>n={touched} touches · {esc(s.get("sessions", "?"))} sessions · '
+        f'{esc(s.get("from", "?"))} → {esc(s.get("to", "?"))}</span></div>')
+
+    # playbook: a rate-sheet table
+    ft = summary.get("first_touch") or {}
+    rows = ""
+    for k, label in _LEVEL_LABELS.items():
+        price = amd.get(k)
+        st = ft.get(k) or {}
+        if not isinstance(price, (int, float)) or not st:
+            continue
+        rows += (
+            f'<tr><td class="mono lvl">{label}</td>'
+            f'<td class="mono">{fnum(float(price))}</td>'
+            f'<td class="mono amber">{float(st.get("fakeout_pct") or 0):.0f}%</td>'
+            f'<td class="mono">≈{float(st.get("fakeout_median_overshoot_pts") or 0):.0f} pts</td>'
+            f'<td class="mono up">+{float(st.get("fakeout_median_mfe60_pts") or 0):.0f} pts</td>'
+            f'<td class="mono dn">{float(st.get("fakeout_median_mae120_pts") or 0):.0f} pts</td></tr>')
+    table = (
+        '<table class="sheet"><thead><tr>'
+        "<th>IF FIRST TOUCH TODAY</th><th>PRICE</th><th>FAKEOUT</th>"
+        "<th>STOPS RUN</th><th>MED. BOUNCE 60M</th><th>RISK 120M</th>"
+        f"</tr></thead><tbody>{rows}</tbody></table>")
+
+    n = (summary.get("sample") or {}).get("sessions", "?")
+    body = (f'<div class="herogrid"><div>{left}</div>{right}</div>{table}')
+    return section("01", f"Today's Script — vs {esc(n)}-session history",
+                   body, anchor="script")
+
+
+# ----------------------------------------------------------------- ladder
 
 _STRENGTH_RE = re.compile(r"\s*\[(\++)\]\s*")
 
-# Interpretation drawers for GEX level types (from the GEX Suite reference)
 _TYPE_INFO = [
     ("call wall 0dte", "Same-day-expiry call wall — highly reactive intraday "
                        "magnet/barrier. Resets each session."),
@@ -209,10 +286,6 @@ def _type_drawer(name: str, strength: int) -> str:
     return text
 
 
-_LEVEL_LABELS = {"asia_high": "ASIA HIGH", "asia_low": "ASIA LOW",
-                 "london_high": "LONDON HIGH", "london_low": "LONDON LOW"}
-
-
 def _stats_drawer(key: str, ft: dict) -> str:
     st = ft.get(key) or {}
     if not st:
@@ -244,23 +317,20 @@ class _Drawers:
         self.n += 1
         did = f"d{self.n}"
         opener = row_html_open.replace("{D}", f' data-d="{did}"')
-        return (opener + f'<span class="rchev">▸</span>{inner}</div>'
+        return (opener + f'<span class="rchev">+</span>{inner}</div>'
                 + f'<div class="drawer" id="{did}" hidden>{drawer}</div>')
 
 
 LADDER_NEAREST = 16
 
 
-def build_ladder(gex: dict | None, summary: dict | None,
-                 age: float | None) -> str:
-    if gex is None:
-        return panel("GEX Level Ladder", "", nofeed=True)
+def _ladder_html(gex: dict, summary: dict | None) -> str:
     ft = (summary or {}).get("first_touch") or {}
     last = gex.get("current_price")
     last = float(last) if isinstance(last, (int, float)) else None
     dw = _Drawers()
 
-    rows: list[tuple[float, str, str]] = []  # (price, cls, html)
+    rows: list[tuple[float, str, str]] = []
     for lv in gex.get("levels") or []:
         try:
             p, raw = float(lv["price"]), str(lv["name"])
@@ -270,7 +340,7 @@ def build_ladder(gex: dict | None, summary: dict | None,
         strength = len(m.group(1)) if m else 0
         name = _STRENGTH_RE.sub("", raw)
         cls = _level_cls(name)
-        dots = f'<span class="dots">{"●" * strength}</span>' if strength else ""
+        dots = f'<span class="dots">{"+" * strength}</span>' if strength else ""
         inner = (f'<span class="lname">{esc(name)}</span>{dots}'
                  f'<span class="lpx mono">{fnum(p)}</span>')
         rows.append((p, cls, dw.row(f'<div class="lrow {cls}"{{D}}>', inner,
@@ -286,8 +356,8 @@ def build_ladder(gex: dict | None, summary: dict | None,
                                 _stats_drawer(key, ft))))
     if last is not None:
         rows.append((last, "last",
-                     f'<div class="lrow last"><span class="lname">► LAST'
-                     f'</span><span class="lpx mono">{fnum(last)}</span></div>'))
+                     f'<div class="lrow last"><span class="lname">LAST</span>'
+                     f'<span class="lpx mono">{fnum(last)}</span></div>'))
     rows.sort(key=lambda r: r[0], reverse=True)
 
     keep = {id(r) for r in rows if r[1] not in ("corr", "gamma")}
@@ -306,26 +376,17 @@ def build_ladder(gex: dict | None, summary: dict | None,
         elif not skipping:
             parts.append('<div class="lrow gap"><span class="lname">···</span></div>')
             skipping = True
-
-    sym = esc(gex.get("symbol") or "")
-    hint = '<div class="lnote">click a level for its playbook</div>'
-    return panel(f"GEX Level Ladder · {sym}",
-                 f'<div class="ladder">{"".join(parts)}</div>{hint}', age)
+    return "".join(parts)
 
 
-def build_public_ladder(gex: dict | None, brief: dict | None,
-                        summary: dict | None, age: float | None) -> str:
-    """Product-edition ladder: price-derived session levels only (no GEX
-    Suite data), each annotated with its SweepStats first-touch odds."""
+def _public_ladder_html(gex: dict | None, brief: dict | None,
+                        summary: dict | None) -> str:
     amd = (gex or {}).get("session_amd") or {}
     ft = (summary or {}).get("first_touch") or {}
     nq = ((brief or {}).get("ctx") or {}).get("NQ") or {}
     last = nq.get("last") if isinstance(nq.get("last"), (int, float)) \
         else (gex or {}).get("current_price")
-    if not amd and last is None:
-        return panel("Session Liquidity Ladder", "", nofeed=True)
     dw = _Drawers()
-
     rows: list[tuple[float, str]] = []
     for key, label in _LEVEL_LABELS.items():
         v = amd.get(key)
@@ -334,7 +395,7 @@ def build_public_ladder(gex: dict | None, brief: dict | None,
         st = ft.get(key) or {}
         odds = ""
         if st:
-            odds = (f'<span class="lodds mono">{float(st.get("fakeout_pct") or 0):.0f}% FAKE '
+            odds = (f'<span class="lodds mono">{float(st.get("fakeout_pct") or 0):.0f}% fake '
                     f'· stops run ≈{float(st.get("fakeout_median_overshoot_pts") or 0):.0f} pts '
                     f'· +{float(st.get("fakeout_median_mfe60_pts") or 0):.0f}/60m</span>')
         inner = (f'<span class="lname">{label}</span>{odds}'
@@ -348,14 +409,13 @@ def build_public_ladder(gex: dict | None, brief: dict | None,
                      f'<span class="lpx mono">{fnum(float(pc))}</span></div>'))
     if isinstance(last, (int, float)):
         rows.append((float(last),
-                     f'<div class="lrow last roomy"><span class="lname">► LAST'
-                     f'</span><span class="lpx mono">{fnum(float(last))}</span></div>'))
+                     f'<div class="lrow last roomy"><span class="lname">LAST</span>'
+                     f'<span class="lpx mono">{fnum(float(last))}</span></div>'))
     rows.sort(key=lambda r: r[0], reverse=True)
-    note = ('<div class="lnote">levels computed from price data · odds from '
-            'the SweepStats dataset · click a level for its full playbook</div>')
-    return panel("Session Liquidity Ladder · NQ",
-                 f'<div class="ladder">{"".join(r[1] for r in rows)}</div>{note}', age)
+    return "".join(r[1] for r in rows)
 
+
+# ------------------------------------------------------------- structure
 
 def _buckets_html(summary: dict | None) -> str:
     out = ""
@@ -364,133 +424,69 @@ def _buckets_html(summary: dict | None) -> str:
             continue
         out += (
             f'<div class="bucket" data-range="{esc(rng)}">'
-            f'<div class="brange mono">{esc(rng)}</div>'
-            f'<div class="bfake mono">{float(b.get("fakeout_pct") or 0):.0f}%</div>'
-            f'<div class="bsub">n={int(b.get("touches") or 0)} · '
-            f'+{float(b.get("fakeout_median_mfe60_pts") or 0):.0f} pts/60m</div></div>')
+            f'<span class="brange mono">{esc(rng)}</span>'
+            f'<span class="bfake mono">{float(b.get("fakeout_pct") or 0):.0f}%</span>'
+            f'<span class="bsub mono">n={int(b.get("touches") or 0)} · '
+            f'+{float(b.get("fakeout_median_mfe60_pts") or 0):.0f}/60m</span></div>')
     if not out:
         return ""
-    return ('<div class="subhead bsep">FAKEOUT % BY TIME OF FIRST TOUCH</div>'
+    return (f'<div class="colhead mono">FAKEOUT % BY TIME OF FIRST TOUCH</div>'
             f'<div class="buckets">{out}</div>')
 
 
-def build_clock(summary: dict | None) -> str:
-    # 24h ET timeline: Asia 18–24, London 2–5, NY 9:30–16
-    blocks = "".join(
-        f'<div class="tlblock {c}" style="left:{lo / 14.4:.2f}%;'
-        f'width:{(hi - lo) / 14.4:.2f}%"></div>'
-        for c, lo, hi in (("tl-asia", 1080, 1440), ("tl-london", 120, 300),
-                          ("tl-ny", 570, 960)))
-    ticks = "".join(f'<span class="tltick" style="left:{h / .24:.1f}%">'
-                    f'{h:02d}</span>' for h in (0, 6, 12, 18))
-    timeline = (f'<div class="tlwrap"><div class="tl">{blocks}'
-                f'<div class="tlneedle" id="tl-needle"></div></div>'
-                f'<div class="tlticks">{ticks}</div></div>')
-    rows = "".join(
-        f'<div class="crow" id="sess-{k}"><span class="cname">{n}</span>'
-        f'<span class="cwin mono">{w}</span>'
-        f'<span class="cstate mono" id="state-{k}">—</span>'
-        f'<span class="ceta mono" id="eta-{k}"></span></div>'
-        for k, n, w in (("asia", "ASIA", "18:00–00:00"),
-                        ("london", "LONDON", "02:00–05:00"),
-                        ("ny", "NEW YORK", "09:30–16:00")))
-    body = (f'<div class="clockbig mono" id="et-big">--:--:--</div>'
-            f'<div class="clocksub">EASTERN TIME</div>{timeline}{rows}'
-            + _buckets_html(summary))
-    return panel("Session Clock", body)
+def build_structure(gex: dict | None, brief: dict | None, summary: dict | None,
+                    age: float | None, public: bool) -> str:
+    if public:
+        title = "Session Liquidity Map · NQ"
+        ladder = _public_ladder_html(gex, brief, summary)
+        note = ("levels computed from price data · odds from the SweepStats "
+                "dataset · click a level for its playbook")
+        if not ladder:
+            return section("02", title, "", anchor="structure", nofeed=True)
+    else:
+        title = f'GEX Level Ladder · {esc((gex or {}).get("symbol") or "NQ")}'
+        if gex is None:
+            return section("02", title, "", anchor="structure", nofeed=True)
+        ladder = _ladder_html(gex, summary)
+        note = "click a level for its playbook"
+
+    clock = (
+        f'<div class="clockbig mono" id="et-big">--:--:--</div>'
+        f'<div class="clocksub mono">EASTERN TIME</div>'
+        '<div class="tlwrap"><div class="tl">'
+        + "".join(f'<div class="tlblock {c}" style="left:{lo / 14.4:.2f}%;'
+                  f'width:{(hi - lo) / 14.4:.2f}%"></div>'
+                  for c, lo, hi in (("tl-asia", 1080, 1440),
+                                    ("tl-london", 120, 300),
+                                    ("tl-ny", 570, 960)))
+        + '<div class="tlneedle" id="tl-needle"></div></div>'
+        + '<div class="tlticks">'
+        + "".join(f'<span class="tltick mono" style="left:{h / .24:.1f}%">{h:02d}</span>'
+                  for h in (0, 6, 12, 18))
+        + "</div></div>"
+        + "".join(
+            f'<div class="crow" id="sess-{k}"><span class="cname mono">{n}</span>'
+            f'<span class="cwin mono">{w}</span>'
+            f'<span class="cstate mono" id="state-{k}">—</span>'
+            f'<span class="ceta mono" id="eta-{k}"></span></div>'
+            for k, n, w in (("asia", "ASIA", "18:00–00:00"),
+                            ("london", "LONDON", "02:00–05:00"),
+                            ("ny", "NEW YORK", "09:30–16:00")))
+        + _buckets_html(summary))
+
+    body = (f'<div class="structgrid">'
+            f'<div class="ladcol"><div class="ladder">{ladder}</div>'
+            f'<div class="lnote mono">{note}</div></div>'
+            f'<div class="clkcol">{clock}</div></div>')
+    return section("02", title, body, age, anchor="structure")
 
 
-def _hero_numbers(summary: dict) -> tuple[int, int, int]:
-    ft = summary.get("first_touch") or {}
-    touched = sum(int(v.get("touched") or 0) for v in ft.values() if isinstance(v, dict))
-    fake = sum(int(v.get("fakeout") or 0) for v in ft.values() if isinstance(v, dict))
-    pct = round(100.0 * fake / touched) if touched else 0
-    return pct, fake, touched
+# ------------------------------------------------------------------ stats
 
-
-def build_hero(summary: dict | None, age: float | None) -> str:
-    if summary is None:
-        return panel("SweepStats", "", nofeed=True)
-    pct, fake, touched = _hero_numbers(summary)
-    s = summary.get("sample") or {}
-    # ring gauge: r=70 → circumference ≈ 439.82
-    dash = 439.82 * pct / 100.0
-    ring = (
-        '<svg class="ring" viewBox="0 0 170 170" width="170" height="170">'
-        '<circle cx="85" cy="85" r="70" fill="none" stroke="rgba(255,180,84,.12)"'
-        ' stroke-width="10"/>'
-        f'<circle cx="85" cy="85" r="70" fill="none" stroke="#ffb454"'
-        f' stroke-width="10" stroke-linecap="round"'
-        f' stroke-dasharray="{dash:.1f} 439.82"'
-        ' transform="rotate(-90 85 85)"/>'
-        f'<text x="85" y="80" text-anchor="middle" class="ringpct">{pct}%</text>'
-        f'<text x="85" y="102" text-anchor="middle" class="ringsub">FAKEOUT</text>'
-        "</svg>")
-    body = (
-        f'<div class="hero bracket">{ring}'
-        f'<div class="herolabel">of first NY touches of Asia/London levels are fakeouts</div>'
-        f'<div class="herosub mono">n={touched} episodes · {esc(s.get("sessions", "?"))} sessions<br>'
-        f'{esc(s.get("from", "?"))} → {esc(s.get("to", "?"))}</div>'
-        f'<button class="linkbtn" id="hero-more">VIEW BREAKDOWN ▾</button></div>')
-    return panel("SweepStats", body, age)
-
-
-_SWEEP_KEYS = {"asia high": "asia_high", "asia low": "asia_low",
-               "none": "none", "both": "both"}
 _BUCKET_TITLES = {"asia_high": "LONDON SWEEPS ASIA HIGH",
                   "asia_low": "LONDON SWEEPS ASIA LOW",
                   "none": "NO LONDON SWEEP",
                   "both": "LONDON SWEEPS BOTH SIDES"}
-
-
-def build_script(gex: dict | None, summary: dict | None) -> str:
-    amd = (gex or {}).get("session_amd") or {}
-    if not amd or summary is None:
-        return panel("Today's Script", "", nofeed=True)
-    sweep_raw = str(amd.get("london_sweep") or "none")
-    key = _SWEEP_KEYS.get(sweep_raw.lower(), "none")
-    lm = (summary.get("london_manipulation") or {}).get(key) or {}
-    days = int(lm.get("days") or 0)
-    up_pct = float(lm.get("ny_up_pct") or 0)
-    med = float(lm.get("median_ny_change_pts") or 0)
-    low_n = ' <span class="lown">(LOW SAMPLE)</span>' if days < 5 else ""
-    bias = str(amd.get("day_bias") or "").upper()
-    bias_chip = (f'<span class="chip {"biasup" if bias == "BULLISH" else "biasdn"}">'
-                 f'BIAS {esc(bias)}</span>') if bias else ""
-
-    d = str(amd.get("date") or "")
-    date_chip = ""
-    if d and d != datetime.now(ET).date().isoformat():
-        date_chip = f'<span class="chip stale">SCRIPT FROM {esc(d)}</span>'
-
-    left = (
-        f'<div class="verdict bracket">'
-        f'<div class="scriptpat mono">{esc(_BUCKET_TITLES[key])}</div>'
-        f'<div class="scripthist">→ NY closed <span class="{"up" if up_pct >= 50 else "dn"}">'
-        f'UP {up_pct:.0f}%</span> of days · median NY move '
-        f'<span class="mono {chg_cls(med)}">{med:+.1f} pts</span> · n={days} days{low_n}</div>'
-        f"</div>")
-
-    ft = summary.get("first_touch") or {}
-    trows = ""
-    for k, label in _LEVEL_LABELS.items():
-        price = amd.get(k)
-        st = ft.get(k) or {}
-        if not isinstance(price, (int, float)) or not st:
-            continue
-        trows += (
-            f'<div class="srow"><span class="slvl">{label}</span>'
-            f'<span class="mono spx">{fnum(float(price))}</span>'
-            f'<span class="mono sfake">{float(st.get("fakeout_pct") or 0):.0f}% FAKEOUT</span>'
-            f'<span class="mono srun">stops run ≈{float(st.get("fakeout_median_overshoot_pts") or 0):.0f} pts past</span>'
-            f'<span class="mono sbnc up">bounce +{float(st.get("fakeout_median_mfe60_pts") or 0):.0f} pts/60m</span></div>')
-    right = (f'<div class="scriptlvls"><div class="subhead">IF FIRST TOUCH TODAY →</div>'
-             f'{trows}</div>')
-
-    n = (summary.get("sample") or {}).get("sessions", "?")
-    body = f'<div class="script">{left}{right}</div>'
-    return panel(f"Today's Script — overnight pattern vs {esc(n)}-session history",
-                 body, extra_chip=date_chip + bias_chip, cls="accent")
 
 
 def _first_touch_pane(summary: dict) -> str:
@@ -501,19 +497,20 @@ def _first_touch_pane(summary: dict) -> str:
             continue
         pct = float(st.get("fakeout_pct") or 0)
         rows += (
-            f'<div class="ftrow"><span class="ftname">{label}</span>'
-            f'<span class="ftbar"><span class="ftfill" style="width:{pct:.1f}%"></span></span>'
-            f'<span class="mono ftpct">{pct:.0f}%</span>'
-            f'<span class="mono ftsub">{int(st.get("touched") or 0)} touches</span>'
-            f'<span class="mono ftsub up">+{float(st.get("fakeout_median_mfe60_pts") or 0):.0f} pts/60m</span>'
-            f'<span class="mono ftsub dn">risk {float(st.get("fakeout_median_mae120_pts") or 0):.0f} pts</span></div>')
-    legend = ('<div class="ftlegend">FAKEOUT % OF FIRST NY TOUCH · MEDIAN REVERSAL '
-              '· STOP-RUN RISK (MAE 120M)</div>')
-    return legend + rows
+            f'<tr><td class="mono lvl">{label}</td>'
+            f'<td class="barcell"><span class="bar"><span class="fill" '
+            f'style="width:{pct:.1f}%"></span></span></td>'
+            f'<td class="mono amber">{pct:.0f}%</td>'
+            f'<td class="mono">{int(st.get("touched") or 0)}</td>'
+            f'<td class="mono up">+{float(st.get("fakeout_median_mfe60_pts") or 0):.0f} pts</td>'
+            f'<td class="mono dn">{float(st.get("fakeout_median_mae120_pts") or 0):.0f} pts</td></tr>')
+    return ('<table class="sheet"><thead><tr><th>LEVEL</th><th></th>'
+            "<th>FAKEOUT</th><th>TOUCHES</th><th>MED. REVERSAL 60M</th>"
+            f"<th>STOP-RUN RISK</th></tr></thead><tbody>{rows}</tbody></table>")
 
 
 def _matrix_pane(summary: dict) -> str:
-    cells = ""
+    rows = ""
     for k, title in _BUCKET_TITLES.items():
         b = (summary.get("london_manipulation") or {}).get(k)
         if not isinstance(b, dict):
@@ -521,33 +518,38 @@ def _matrix_pane(summary: dict) -> str:
         days = int(b.get("days") or 0)
         up = float(b.get("ny_up_pct") or 0)
         med = float(b.get("median_ny_change_pts") or 0)
-        low_n = '<span class="lown"> (LOW SAMPLE)</span>' if days < 5 else ""
-        cells += (
-            f'<div class="mcell"><div class="mtitle">{title}{low_n}</div>'
-            f'<div class="mstats mono"><span>n={days}</span>'
-            f'<span class="{"up" if up >= 50 else "dn"}">NY UP {up:.0f}%</span>'
-            f'<span class="{chg_cls(med)}">{med:+.1f} pts</span></div></div>')
-    return f'<div class="matrix">{cells}</div>'
+        low_n = ' <span class="lown">low sample</span>' if days < 5 else ""
+        rows += (
+            f'<tr><td class="mono lvl">{title}{low_n}</td>'
+            f'<td class="mono">{days}</td>'
+            f'<td class="mono {"up" if up >= 50 else "dn"}">{up:.0f}%</td>'
+            f'<td class="mono {chg_cls(med)}">{med:+.1f} pts</td></tr>')
+    return ('<table class="sheet"><thead><tr><th>OVERNIGHT PATTERN</th>'
+            "<th>DAYS</th><th>NY CLOSED UP</th><th>MEDIAN NY MOVE</th>"
+            f"</tr></thead><tbody>{rows}</tbody></table>")
 
 
-def build_stats_deck(summary: dict | None, age: float | None) -> str:
+def build_stats(summary: dict | None, age: float | None) -> str:
     if summary is None:
-        return panel("Stats Deck", "", nofeed=True)
+        return section("03", "The Numbers", "", anchor="stats", nofeed=True)
     body = (
-        '<div class="tabbar">'
+        '<div class="tabbar mono">'
         '<button class="tab active" data-pane="pane-ft">FIRST-TOUCH BOARD</button>'
+        '<span class="tabsep">/</span>'
         '<button class="tab" data-pane="pane-lm">LONDON MATRIX</button>'
         "</div>"
         f'<div class="tabpane active" id="pane-ft">'
-        f'<div class="pane-title">FIRST-TOUCH BOARD</div>{_first_touch_pane(summary)}</div>'
+        f'<div class="pane-title mono">FIRST-TOUCH BOARD</div>{_first_touch_pane(summary)}</div>'
         f'<div class="tabpane" id="pane-lm">'
-        f'<div class="pane-title">LONDON MATRIX</div>{_matrix_pane(summary)}</div>')
-    return panel("Stats Deck", body, age, cls="deck")
+        f'<div class="pane-title mono">LONDON MATRIX</div>{_matrix_pane(summary)}</div>')
+    return section("03", "The Numbers", body, age, anchor="stats")
 
+
+# ------------------------------------------------------------------- wire
 
 def build_wire(brief: dict | None, age: float | None) -> str:
     if brief is None:
-        return panel("Wire", "", nofeed=True)
+        return section("04", "Wire", "", anchor="wire", nofeed=True)
     news = (brief.get("news") or [])[:6]
     items = ""
     for i, n in enumerate(news):
@@ -561,245 +563,217 @@ def build_wire(brief: dict | None, age: float | None) -> str:
                   f'{esc(n.get("title") or "")}</a></div>')
     toggle = ""
     if len(news) > 3:
-        toggle = (f'<button class="linkbtn" id="wire-more">SHOW ALL '
-                  f'({len(news)}) ▾</button>')
+        toggle = (f'<button class="linkbtn mono" id="wire-more">SHOW ALL '
+                  f'({len(news)}) +</button>')
     cal = ""
     for ev in brief.get("calendar") or []:
         if not isinstance(ev, dict):
             continue
-        cal += (f'<span class="calchip mono">{esc(ev.get("time") or "")} '
+        cal += (f'<span class="calitem mono">{esc(ev.get("time") or "")} '
                 f'{esc(ev.get("title") or "")} · {esc(ev.get("impact") or "")}'
                 f'{" · f:" + esc(ev["forecast"]) if ev.get("forecast") else ""}</span>')
     if cal:
-        cal = f'<div class="cal">{cal}</div>'
-    return panel("Wire", items + toggle + cal, age)
+        cal = (f'<div class="colhead mono" style="margin-top:18px">TODAY\'S CALENDAR</div>'
+               f'<div class="cal">{cal}</div>')
+    return section("04", "Wire", items + toggle + cal, age, anchor="wire")
 
 
 # ------------------------------------------------------------------ page
 
 CSS = """
 *{margin:0;padding:0;box-sizing:border-box}
-body{background:#0a0d10;color:#c9d4de;font:13px/1.45 "Segoe UI",system-ui,sans-serif;
-  background-image:
-    radial-gradient(1200px 500px at 50% -100px,rgba(77,208,225,.05),transparent),
-    repeating-linear-gradient(0deg,rgba(255,255,255,.015) 0 1px,transparent 1px 24px),
-    repeating-linear-gradient(90deg,rgba(255,255,255,.015) 0 1px,transparent 1px 24px)}
-a{color:#c9d4de;text-decoration:none}a:hover{color:#ffb454}
+html{scroll-behavior:smooth}
+body{background:#0a0d10;color:#c9d4de;
+  font:14px/1.55 "Segoe UI",system-ui,sans-serif;
+  background-image:radial-gradient(900px 420px at 70% -140px,rgba(77,208,225,.045),transparent)}
+::selection{background:#ffb454;color:#0a0d10}
+::-webkit-scrollbar{width:10px}
+::-webkit-scrollbar-thumb{background:#1e2833}
+::-webkit-scrollbar-track{background:#0a0d10}
+a{color:#c9d4de;text-decoration:none}
 button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
 .mono{font-family:"Cascadia Mono","Consolas",monospace}
-.up{color:#3ddc84}.dn{color:#ff5f56}.flat{color:#5c6a78}
-.wrap{width:1440px;margin:0 auto;padding:14px;display:flex;flex-direction:column;gap:12px}
-/* ---- panel chrome: depth ---- */
-.panel{background:linear-gradient(180deg,#121821,#0e1319);
-  border:1px solid #1e2833;border-radius:4px;padding:10px 12px;position:relative;
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.045),0 10px 28px rgba(0,0,0,.42);
-  transition:border-color .15s ease}
-.panel:hover{border-color:#2c3d4e}
-.panel.accent{border-color:#3a3324}
-.panel.accent:hover{border-color:#ffb454}
-.phead{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;
-  min-height:24px}
-.phead.tgl{cursor:pointer;user-select:none}
-.ptitle{font-family:"Cascadia Mono","Consolas",monospace;font-size:11px;
-  text-transform:uppercase;letter-spacing:.12em;color:#5c6a78;display:flex;
-  align-items:center;gap:8px}
-.led{width:6px;height:6px;border-radius:50%;flex:none}
-.led.green{background:#3ddc84;box-shadow:0 0 6px rgba(61,220,132,.8);
-  animation:pulse 2.4s ease-in-out infinite}
-.led.amber{background:#ffb454;box-shadow:0 0 6px rgba(255,180,84,.8)}
-.led.red{background:#ff5f56;box-shadow:0 0 6px rgba(255,95,86,.8)}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
-.chips{display:flex;gap:6px;align-items:center}
-.chip{font:10px "Cascadia Mono","Consolas",monospace;letter-spacing:.08em;color:#5c6a78;
-  border:1px solid #1e2833;border-radius:3px;padding:2px 6px;white-space:nowrap}
-.chip.stale{color:#ffb454;border-color:#775a2e}
-.chip.biasup{color:#3ddc84;border-color:#2b6647}.chip.biasdn{color:#ff5f56;border-color:#743732}
-.chev{color:#5c6a78;font-size:10px;transition:transform .15s ease;margin-left:2px}
-.panel.collapsed .chev{transform:rotate(-90deg)}
-.panel.collapsed .pbody{display:none}
+.disp{font-family:"Bahnschrift SemiBold Condensed","Bahnschrift","Arial Narrow",
+  "Segoe UI",sans-serif}
+.up{color:#3ddc84}.dn{color:#ff5f56}.flat{color:#5c6a78}.amber{color:#ffb454}
+.lown{color:#ff5f56;font-size:10px;letter-spacing:.1em;text-transform:uppercase}
+.page{max-width:1200px;margin:0 auto;padding:0 32px}
 .stale-dim{opacity:.55}
-.nofeed{color:#5c6a78;font:18px "Cascadia Mono","Consolas",monospace;
-  letter-spacing:.35em;text-align:center;padding:44px 0}
-.subhead{font:10px "Cascadia Mono","Consolas",monospace;color:#5c6a78;
-  letter-spacing:.14em;margin-bottom:5px}
-.linkbtn{font:10px "Cascadia Mono","Consolas",monospace;letter-spacing:.12em;
-  color:#ffb454;padding:6px 0 2px;display:block}
-.linkbtn:hover{text-shadow:0 0 8px rgba(255,180,84,.5)}
-/* corner brackets */
-.bracket{position:relative}
-.bracket::before,.bracket::after{content:"";position:absolute;width:12px;height:12px;
-  border:1px solid rgba(255,180,84,.55)}
-.bracket::before{top:0;left:0;border-right:none;border-bottom:none}
-.bracket::after{bottom:0;right:0;border-left:none;border-top:none}
-/* ---- header ---- */
-header.panel{display:flex;justify-content:space-between;align-items:center;
-  padding:14px 16px;overflow:hidden}
-header.panel::before{content:"";position:absolute;inset:0 0 auto 0;height:5px;
-  background:repeating-linear-gradient(90deg,rgba(255,180,84,.35) 0 6px,transparent 6px 12px)}
-.wordmark{font:18px "Cascadia Mono","Consolas",monospace;letter-spacing:.35em;color:#c9d4de}
-.wordmark b{color:#ffb454;font-weight:normal;text-shadow:0 0 14px rgba(255,180,84,.35)}
-.cursorblk{display:inline-block;width:9px;height:16px;background:#ffb454;
-  margin-left:6px;vertical-align:-2px;animation:blink 1.1s steps(1) infinite}
-@keyframes blink{50%{opacity:0}}
-.hclocks{display:flex;gap:22px;font-family:"Cascadia Mono","Consolas",monospace}
-.hclocks .lbl{color:#5c6a78;font-size:10px;letter-spacing:.12em;display:block}
-.hclocks .val{font-size:17px}
-.hright{text-align:right;font:10px "Cascadia Mono","Consolas",monospace;
-  color:#5c6a78;letter-spacing:.08em}
-.hright .n{color:#ffb454}
-/* ---- tape ---- */
-.tape{display:flex;align-items:center;gap:20px;flex-wrap:wrap}
-.tape .sym{color:#5c6a78;font-size:11px;letter-spacing:.12em;margin-right:7px}
-.tape-nq .px{font-size:26px;text-shadow:0 0 18px rgba(61,220,132,.25)}
-.tape-nq .px.dn{text-shadow:0 0 18px rgba(255,95,86,.25)}
-.tape-nq .chg{font-size:14px;margin-left:8px}
-.tape-q .px{font-size:15px}.tape-q .chg{font-size:11px;margin-left:6px}
-.sectors{display:flex;gap:6px;flex-wrap:wrap;margin-left:auto}
-.schip{font-size:10.5px;border:1px solid #1e2833;border-radius:3px;padding:2px 6px;
-  transition:border-color .15s ease}
-.schip:hover{border-color:#2c3d4e}
-/* ---- row grids ---- */
-.row2{display:grid;grid-template-columns:2fr 1fr 1fr;gap:12px;align-items:stretch}
-.row2 .panel{display:flex;flex-direction:column}
-.row2 .pbody{flex:1;display:flex;flex-direction:column}
-.row2 .pbody>.hero{margin:auto 0}
-.row4{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start}
-/* ---- ladder ---- */
+.nofeed{color:#39485a;font:15px "Cascadia Mono","Consolas",monospace;
+  letter-spacing:.4em;padding:34px 0 8px}
+/* ---------- masthead ---------- */
+.mast{display:flex;align-items:baseline;justify-content:space-between;
+  padding:26px 0 14px}
+.brand{font-family:"Bahnschrift SemiBold Condensed","Bahnschrift","Arial Narrow",sans-serif;
+  font-size:27px;letter-spacing:.04em;color:#e8eef4;white-space:nowrap}
+.brand em{font-style:normal;color:#ffb454}
+.brand .bsub{display:block;font:10px "Cascadia Mono","Consolas",monospace;
+  color:#5c6a78;letter-spacing:.34em;margin-top:1px}
+.mnav{display:flex;gap:4px;font:11px "Cascadia Mono","Consolas",monospace;
+  letter-spacing:.1em;color:#5c6a78}
+.mnav a{color:#5c6a78;padding:2px 8px}
+.mnav a:hover{color:#ffb454}
+.mnav .nsep{color:#2b3844}
+.mmeta{text-align:right;font:10.5px "Cascadia Mono","Consolas",monospace;
+  color:#5c6a78;letter-spacing:.06em;line-height:1.7}
+.mmeta .n{color:#ffb454}
+.mmeta .clk{color:#c9d4de;font-size:12px}
+.rule2{border-top:3px solid #2b3844;border-bottom:1px solid #1e2833;height:6px}
+/* ---------- ticker ---------- */
+.ticker{overflow:hidden;border-bottom:1px solid #1e2833;padding:7px 0;
+  -webkit-mask-image:linear-gradient(90deg,transparent,#000 3%,#000 97%,transparent)}
+.tickrun{display:inline-flex;white-space:nowrap;animation:tick 60s linear infinite}
+.ticker:hover .tickrun{animation-play-state:paused}
+.tickseg{display:inline-flex}
+.ti{font:12px "Cascadia Mono","Consolas",monospace;color:#8b9aa8;padding:0 14px}
+.ti b{font-weight:normal;color:#c9d4de}
+.sep{color:#2b3844;font:12px "Cascadia Mono","Consolas",monospace}
+@keyframes tick{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+/* ---------- sections ---------- */
+.sec{padding:34px 0 6px}
+.runhead{display:flex;justify-content:space-between;align-items:baseline;
+  border-bottom:1px solid #1e2833;padding-bottom:8px;margin-bottom:18px;
+  cursor:pointer;user-select:none}
+.rh-l{font:11px "Cascadia Mono","Consolas",monospace;letter-spacing:.22em;
+  text-transform:uppercase;color:#8b9aa8}
+.rh-l i{font-style:normal;color:#ffb454;margin-right:14px}
+.rh-l .fold{font-weight:normal;color:#2b3844;margin-left:14px}
+.runhead:hover .fold{color:#ffb454}
+.sec.collapsed .fold{color:#ffb454}
+.sec.collapsed .secbody{display:none}
+.rh-r{display:flex;gap:14px;font:10px "Cascadia Mono","Consolas",monospace;
+  letter-spacing:.1em;color:#5c6a78}
+.st{color:#5c6a78}.st.warn{color:#ffb454}.st.bad{color:#ff5f56}
+.colhead{font-size:10px;letter-spacing:.2em;color:#39485a;margin:2px 0 10px}
+.linkbtn{font-size:10.5px;letter-spacing:.14em;color:#ffb454;padding:10px 0 2px;display:block}
+.linkbtn:hover{text-decoration:underline;text-underline-offset:3px}
+/* ---------- hero ---------- */
+.herogrid{display:grid;grid-template-columns:1.35fr .9fr;gap:44px;
+  align-items:end;padding:6px 0 26px}
+.kicker{font-size:10.5px;letter-spacing:.24em;color:#5c6a78;margin-bottom:14px}
+h1.verdict{font-family:"Bahnschrift SemiBold Condensed","Bahnschrift","Arial Narrow",sans-serif;
+  font-size:64px;line-height:.98;letter-spacing:.005em;color:#e8eef4;
+  text-wrap:balance;margin:0 0 16px}
+.dek{font-size:16px;line-height:1.6;color:#8b9aa8;max-width:56ch}
+.dek .mono{font-size:14.5px}
+.tags{margin-top:16px;display:flex;gap:12px;font-size:11px;letter-spacing:.08em}
+.tag.warn{color:#ffb454}
+.bigstat{text-align:right;padding-bottom:4px}
+.bignum{font-family:"Bahnschrift SemiBold Condensed","Bahnschrift","Arial Narrow",sans-serif;
+  font-size:150px;line-height:.82;color:#ffb454;display:block}
+.bignum i{font-style:normal;font-size:64px}
+.bigcap{display:block;margin-top:12px;font-size:10px;line-height:1.7;
+  letter-spacing:.1em;color:#5c6a78;text-transform:uppercase}
+/* ---------- rate-sheet tables ---------- */
+table.sheet{width:100%;border-collapse:collapse}
+.sheet th{font:9.5px "Cascadia Mono","Consolas",monospace;letter-spacing:.16em;
+  color:#39485a;text-align:left;font-weight:normal;padding:0 14px 7px 0;
+  border-bottom:1px solid #2b3844}
+.sheet td{padding:9px 14px 9px 0;border-bottom:1px solid #161d26;font-size:13px}
+.sheet tr:hover td{background:rgba(255,255,255,.022)}
+.sheet .lvl{color:#4dd0e1;font-size:11px;letter-spacing:.08em}
+.sheet .barcell{width:26%}
+.bar{display:block;height:5px;background:rgba(255,180,84,.12);position:relative}
+.fill{position:absolute;inset:0 auto 0 0;background:#ffb454}
+/* ---------- structure ---------- */
+.structgrid{display:grid;grid-template-columns:1.5fr 1fr;gap:0}
+.ladcol{padding-right:36px;border-right:1px solid #1e2833}
+.clkcol{padding-left:36px}
 .ladder{display:flex;flex-direction:column}
-.lrow{display:flex;align-items:baseline;gap:8px;padding:2px 6px;
-  border-left:2px solid transparent;border-radius:3px;min-height:21px}
+.lrow{display:flex;align-items:baseline;gap:9px;padding:3.5px 4px;min-height:22px}
 .lrow[data-d]{cursor:pointer}
-.lrow[data-d]:hover{background:rgba(255,255,255,.035)}
-.rchev{color:#39485a;font-size:9px;flex:none;transition:transform .15s ease}
-.lrow.open .rchev{transform:rotate(90deg);color:#ffb454}
-.lrow .lname{color:#5c6a78;font-size:11.5px;letter-spacing:.04em}
-.lrow .lpx{margin-left:auto;font-size:12.5px;color:#c9d4de}
-.lrow.corr .lpx{color:#5c6a78}
-.lrow.gamma{border-left-color:#4dd0e1}.lrow.gamma .lname{color:#4dd0e1}
-.lrow.cwall{border-left-color:#3ddc84}.lrow.cwall .lname{color:#3ddc84;font-weight:600}
-.lrow.pwall{border-left-color:#ff5f56}.lrow.pwall .lname{color:#ff5f56;font-weight:600}
-.lrow.flip{border-left-color:#ffb454}.lrow.flip .lname{color:#ffb454;font-weight:600}
-.lrow.amd{border-left-color:#4dd0e1}.lrow.amd .lname{color:#4dd0e1;font-weight:600}
+.lrow[data-d]:hover{background:rgba(255,255,255,.03)}
+.lrow[data-d]:hover .lname{color:#c9d4de}
+.rchev{color:#2b3844;font:10px "Cascadia Mono","Consolas",monospace;flex:none;width:8px}
+.lrow.open .rchev{color:#ffb454}
+.lrow .lname{color:#5c6a78;font-size:11.5px;letter-spacing:.05em}
+.lrow .lpx{margin-left:auto;font-size:12.5px;color:#8b9aa8}
+.lrow.gamma .lname{color:#8b9aa8}
+.lrow.cwall .lname,.lrow.pwall .lname,.lrow.flip .lname{color:#c9d4de;font-weight:600}
+.lrow.cwall .lname::after{content:" ▲";color:#3ddc84;font-size:9px}
+.lrow.pwall .lname::after{content:" ▼";color:#ff5f56;font-size:9px}
+.lrow.flip .lname::after{content:" ◆";color:#ffb454;font-size:9px}
+.lrow.flip .lpx,.lrow.cwall .lpx,.lrow.pwall .lpx{color:#c9d4de}
+.lrow.amd .lname{color:#4dd0e1;font-weight:600}
 .lrow.amd .lpx{color:#4dd0e1}
-.lrow.last{background:linear-gradient(90deg,rgba(255,180,84,.12),rgba(255,180,84,.03));
-  border:1px solid #ffb454;border-radius:3px;margin:2px 0;padding:4px 8px;
-  box-shadow:0 0 14px rgba(255,180,84,.12)}
-.lrow.last .lname{color:#ffb454;font-weight:600}.lrow.last .lpx{color:#ffb454;font-size:14px}
-.lrow.gap .lname{color:#2b3844;letter-spacing:4px}
-.lrow.roomy{padding:9px 8px;font-size:14px}
-.lrow.roomy .lname{font-size:13px}.lrow.roomy .lpx{font-size:15px}
-.lodds{margin-left:14px;font-size:10.5px;color:#5c6a78;letter-spacing:.04em}
-.lnote{margin-top:10px;font:10px "Cascadia Mono","Consolas",monospace;
-  color:#39485a;letter-spacing:.08em}
-.dots{color:#ffb454;font-size:9px;letter-spacing:2px}
-/* drawers */
-.drawer{background:#0b0f14;border:1px solid #1e2833;border-left:2px solid #ffb454;
-  border-radius:3px;margin:2px 0 4px 14px;padding:8px 10px;font-size:11.5px;
-  color:#8b9aa8;line-height:1.5}
-.dgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px 14px}
+.lrow.last{background:#ffb454;margin:3px 0;padding:5px 8px}
+.lrow.last .lname,.lrow.last .lpx{color:#0a0d10;font-weight:700}
+.lrow.last .lname{letter-spacing:.2em;font-size:10.5px}
+.lrow.gap .lname{color:#232e3a;letter-spacing:4px}
+.lrow.roomy{padding:10px 6px}
+.lrow.roomy .lname{font-size:12.5px}.lrow.roomy .lpx{font-size:14.5px}
+.lrow.roomy.last{padding:10px 8px}
+.lodds{margin-left:16px;font-size:10.5px;color:#5c6a78}
+.lnote{margin-top:12px;font-size:9.5px;letter-spacing:.14em;color:#39485a;
+  text-transform:uppercase}
+.dots{color:#ffb454;font-size:10px;letter-spacing:1px}
+.drawer{border-left:1px solid #ffb454;margin:3px 0 8px 18px;padding:9px 0 9px 16px;
+  font-size:12px;color:#8b9aa8;line-height:1.6}
+.dgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px 18px}
 .dcell{display:flex;flex-direction:column}
-.dcell span{font:9px "Cascadia Mono","Consolas",monospace;color:#5c6a78;letter-spacing:.1em}
-.dcell b{font-weight:normal;font-size:12px;color:#c9d4de}
-/* ---- clock ---- */
-.clockbig{font-size:32px;text-align:center;margin-top:4px;
-  text-shadow:0 0 22px rgba(201,212,222,.15)}
-.clocksub{text-align:center;font:10px "Cascadia Mono","Consolas",monospace;
-  color:#5c6a78;letter-spacing:.3em;margin-bottom:12px}
-.tlwrap{margin:0 2px 12px}
-.tl{position:relative;height:14px;background:#0b0f14;border:1px solid #1e2833;
-  border-radius:3px;overflow:hidden}
-.tlblock{position:absolute;top:2px;bottom:2px;border-radius:2px;opacity:.55}
+.dcell span{font:9px "Cascadia Mono","Consolas",monospace;color:#39485a;letter-spacing:.12em}
+.dcell b{font-weight:normal;font-size:12.5px;color:#c9d4de}
+/* clock column */
+.clockbig{font-size:38px;color:#e8eef4;letter-spacing:.02em}
+.clocksub{font-size:9.5px;letter-spacing:.34em;color:#39485a;margin:0 0 18px}
+.tlwrap{margin-bottom:16px}
+.tl{position:relative;height:10px;background:#10151b;overflow:hidden}
+.tlblock{position:absolute;top:0;bottom:0;opacity:.5}
 .tl-asia{background:#4dd0e1}.tl-london{background:#ffb454}.tl-ny{background:#3ddc84}
-.tlneedle{position:absolute;top:-1px;bottom:-1px;width:2px;background:#fff;
-  box-shadow:0 0 8px rgba(255,255,255,.8);left:0}
-.tlticks{position:relative;height:12px;margin-top:2px}
-.tltick{position:absolute;font:9px "Cascadia Mono","Consolas",monospace;color:#39485a}
-.crow{display:flex;align-items:baseline;gap:8px;padding:8px 4px;border-top:1px solid #1e2833}
-.cname{font:12px "Cascadia Mono","Consolas",monospace;letter-spacing:.12em}
-.cwin{color:#5c6a78;font-size:10.5px}
-.cstate{margin-left:auto;font-size:11px;letter-spacing:.1em}
-.cstate.open{color:#3ddc84}.cstate.closed{color:#5c6a78}
-.ceta{color:#5c6a78;font-size:10.5px}
-.bsep{margin-top:14px}
-.buckets{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.bucket{border:1px solid #1e2833;border-radius:3px;padding:6px 8px;text-align:center;
-  background:#0b0f14;transition:border-color .15s ease}
-.bucket.active{border-color:#ffb454;box-shadow:0 0 12px rgba(255,180,84,.15)}
+.tlneedle{position:absolute;top:-2px;bottom:-2px;width:2px;background:#e8eef4;left:0}
+.tlticks{position:relative;height:13px;margin-top:3px}
+.tltick{position:absolute;font-size:9px;color:#39485a}
+.crow{display:flex;align-items:baseline;gap:10px;padding:9px 0;border-top:1px solid #161d26}
+.cname{font-size:11px;letter-spacing:.18em;color:#c9d4de;width:86px}
+.cwin{color:#39485a;font-size:10px}
+.cstate{margin-left:auto;font-size:10.5px;letter-spacing:.12em}
+.cstate.open{color:#3ddc84}.cstate.closed{color:#39485a}
+.ceta{color:#5c6a78;font-size:10px;width:86px;text-align:right}
+.buckets{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:#161d26;
+  border:1px solid #161d26}
+.bucket{background:#0a0d10;padding:9px 12px;display:flex;flex-direction:column}
+.bucket.active{box-shadow:inset 2px 0 0 #ffb454}
 .bucket.active .brange{color:#ffb454}
-.brange{font-size:10px;color:#5c6a78;letter-spacing:.1em}
-.bfake{font-size:20px;color:#c9d4de}
-.bsub{font-size:10px;color:#5c6a78}
-/* ---- hero ---- */
-.hero{text-align:center;padding:14px 8px}
-.ring{display:block;margin:0 auto 6px;filter:drop-shadow(0 0 18px rgba(255,180,84,.25))}
-.ringpct{font:34px "Cascadia Mono","Consolas",monospace;fill:#ffb454}
-.ringsub{font:9px "Cascadia Mono","Consolas",monospace;fill:#5c6a78;letter-spacing:.3em}
-.herolabel{margin:6px auto;max-width:230px;color:#c9d4de;font-size:13px}
-.herosub{color:#5c6a78;font-size:10.5px;letter-spacing:.05em}
-.hero .linkbtn{margin:8px auto 0}
-/* ---- script ---- */
-.script{display:grid;grid-template-columns:1fr 1.4fr;gap:18px}
-.verdict{padding:14px 16px;background:#0b0f14;border:1px solid #1e2833;border-radius:3px}
-.scriptpat{font-size:22px;letter-spacing:.14em;color:#ffb454;margin:2px 0 8px;
-  text-shadow:0 0 16px rgba(255,180,84,.3)}
-.scripthist{font-size:13px;color:#c9d4de}
-.lown{color:#ff5f56;font-size:10px;letter-spacing:.08em}
-.srow{display:flex;gap:14px;align-items:baseline;padding:4px 6px;
-  border-top:1px solid #1e2833;font-size:12px;border-radius:3px}
-.srow:hover{background:rgba(255,255,255,.035)}
-.srow .slvl{width:96px;color:#4dd0e1;font:11px "Cascadia Mono","Consolas",monospace;letter-spacing:.06em}
-.srow .spx{width:80px;color:#c9d4de}
-.srow .sfake{width:104px;color:#ffb454}
-.srow .srun{color:#5c6a78}
-.srow .sbnc{margin-left:auto}
-/* ---- stats deck ---- */
-.tabbar{display:flex;gap:2px;margin-bottom:10px;border-bottom:1px solid #1e2833}
-.tab{font:10.5px "Cascadia Mono","Consolas",monospace;letter-spacing:.12em;
-  color:#5c6a78;padding:6px 12px;border-bottom:2px solid transparent;margin-bottom:-1px}
-.tab:hover{color:#c9d4de}
-.tab.active{color:#ffb454;border-bottom-color:#ffb454}
+.brange{font-size:9.5px;letter-spacing:.12em;color:#39485a}
+.bfake{font-size:21px;color:#c9d4de;margin:1px 0}
+.bsub{font-size:9.5px;color:#39485a}
+.buckets+.colhead{margin-top:16px}
+.colhead{margin-top:18px}
+/* ---------- tabs ---------- */
+.tabbar{display:flex;gap:10px;align-items:baseline;font-size:11px;
+  letter-spacing:.16em;margin-bottom:16px}
+.tab{color:#39485a;padding:0}
+.tab:hover{color:#8b9aa8}
+.tab.active{color:#ffb454}
+.tabsep{color:#232e3a}
 .tabpane{display:none}
 .tabpane.active{display:block}
-.pane-title{display:none;font:10px "Cascadia Mono","Consolas",monospace;
-  color:#5c6a78;letter-spacing:.14em;margin:10px 0 4px}
-.ftlegend{font:9.5px "Cascadia Mono","Consolas",monospace;color:#5c6a78;
-  letter-spacing:.08em;margin-bottom:6px}
-.ftrow{display:flex;align-items:center;gap:10px;padding:8px 4px;border-top:1px solid #1e2833;
-  border-radius:3px}
-.ftrow:hover{background:rgba(255,255,255,.035)}
-.ftname{width:100px;font:11px "Cascadia Mono","Consolas",monospace;
-  color:#4dd0e1;letter-spacing:.06em}
-.ftbar{flex:1;height:8px;background:rgba(255,180,84,.1);border-radius:2px;overflow:hidden}
-.ftfill{display:block;height:100%;background:#ffb454;border-radius:0 4px 4px 0}
-.ftpct{width:44px;text-align:right;color:#ffb454;font-size:13px}
-.ftsub{width:92px;text-align:right;color:#5c6a78;font-size:10.5px}
-.matrix{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.mcell{border:1px solid #1e2833;border-radius:3px;padding:9px 10px;background:#0b0f14;
-  transition:border-color .15s ease}
-.mcell:hover{border-color:#2c3d4e}
-.mtitle{font:10.5px "Cascadia Mono","Consolas",monospace;color:#5c6a78;letter-spacing:.08em;margin-bottom:7px}
-.mstats{display:flex;justify-content:space-between;font-size:13px}
-/* ---- wire ---- */
-.wrow{display:flex;gap:12px;padding:5px 4px;border-top:1px solid #1e2833;font-size:12.5px;
-  border-radius:3px}
-.wrow:first-child{border-top:none}
-.wrow:hover{background:rgba(255,255,255,.035)}
+.pane-title{display:none;font-size:10px;letter-spacing:.2em;color:#39485a;margin:18px 0 8px}
+/* ---------- wire ---------- */
+.wrow{display:flex;gap:18px;padding:8px 0;border-bottom:1px solid #161d26;
+  font-size:14px;align-items:baseline}
+.wrow a:hover{color:#ffb454;text-decoration:underline;text-underline-offset:3px}
 .wrow.wmore{display:none}
 .wire-open .wrow.wmore{display:flex}
-.wtime{color:#ffb454;font-size:11px}
-.cal{margin-top:8px;display:flex;gap:8px;flex-wrap:wrap}
-.calchip{font-size:10.5px;color:#4dd0e1;border:1px solid #1e2833;border-radius:3px;padding:2px 8px}
-/* ---- footer ---- */
-footer{display:flex;justify-content:space-between;font:10px "Cascadia Mono","Consolas",monospace;
-  color:#5c6a78;letter-spacing:.08em;padding:2px 4px 10px}
-footer .amber{color:#ffb454}
-/* ---- expand-all (#png screenshot mode) ---- */
+.wtime{color:#ffb454;font-size:11px;flex:none}
+.cal{display:flex;gap:20px;flex-wrap:wrap}
+.calitem{font-size:11px;color:#4dd0e1}
+/* ---------- footer ---------- */
+.foot{margin-top:44px;border-top:3px solid #2b3844;padding:16px 0 30px;
+  display:grid;grid-template-columns:1fr 1fr 1fr;gap:24px;
+  font:10px "Cascadia Mono","Consolas",monospace;color:#39485a;
+  letter-spacing:.08em;line-height:1.8}
+.foot .fh{color:#5c6a78;letter-spacing:.22em;display:block;margin-bottom:2px}
+.foot .amber{color:#ffb454}
+.foot .fc{text-align:center}.foot .fr{text-align:right}
+/* ---------- expand-all (#png screenshot mode) ---------- */
 body.expand-all .tabbar{display:none}
 body.expand-all .tabpane{display:block}
 body.expand-all .pane-title{display:block}
 body.expand-all .wrow.wmore{display:flex}
-body.expand-all #wire-more,body.expand-all #hero-more{display:none}
+body.expand-all #wire-more{display:none}
 body.expand-all .lnote{display:none}
+body.expand-all .tickrun{animation:none}
 """
 
 JS = """
@@ -810,15 +784,15 @@ function etParts(){
   if(o.hour==='24')o.hour='00';return o;}
 function utcStr(){
   return new Intl.DateTimeFormat('en-GB',{timeZone:'UTC',hour12:false,
-    hour:'2-digit',minute:'2-digit',second:'2-digit'}).format(new Date());}
+    hour:'2-digit',minute:'2-digit'}).format(new Date());}
 function fmtEta(mins){var h=Math.floor(mins/60),m=mins%60;
   return (h?h+'H ':'')+m+'M';}
 var SESS=[['asia',1080,1440],['london',120,300],['ny',570,960]];
 function tick(){
   var o=etParts(),et=o.hour+':'+o.minute+':'+o.second;
-  var els=document.querySelectorAll('.js-et');for(var i=0;i<els.length;i++)els[i].textContent=et;
   var b=document.getElementById('et-big');if(b)b.textContent=et;
-  var u=document.getElementById('hdr-utc');if(u)u.textContent=utcStr();
+  var h=document.getElementById('mast-ny');if(h)h.textContent=o.hour+':'+o.minute+' NY';
+  var u=document.getElementById('mast-utc');if(u)u.textContent=utcStr()+' UTC';
   var mins=parseInt(o.hour,10)*60+parseInt(o.minute,10);
   var nd=document.getElementById('tl-needle');
   if(nd)nd.style.left=(mins/1440*100).toFixed(2)+'%';
@@ -839,11 +813,13 @@ function tick(){
 }
 tick();setInterval(tick,1000);
 
-/* collapsible panels */
-document.querySelectorAll('.phead.tgl').forEach(function(h){
+/* collapsible sections */
+document.querySelectorAll('.runhead').forEach(function(h){
   h.addEventListener('click',function(e){
     if(e.target.closest('a,button'))return;
-    h.parentElement.classList.toggle('collapsed');
+    var sec=h.parentElement;
+    sec.classList.toggle('collapsed');
+    h.querySelector('.fold').textContent=sec.classList.contains('collapsed')?'[+]':'[\\u2013]';
   });
 });
 /* ladder drawers */
@@ -853,14 +829,15 @@ document.querySelectorAll('.lrow[data-d]').forEach(function(row){
     if(!d)return;
     d.hidden=!d.hidden;
     row.classList.toggle('open',!d.hidden);
+    var c=row.querySelector('.rchev');if(c)c.textContent=d.hidden?'+':'\\u2013';
   });
 });
 /* tabs */
 document.querySelectorAll('.tab').forEach(function(t){
   t.addEventListener('click',function(){
-    var bar=t.parentElement,deck=bar.parentElement;
-    bar.querySelectorAll('.tab').forEach(function(x){x.classList.remove('active')});
-    deck.querySelectorAll('.tabpane').forEach(function(x){x.classList.remove('active')});
+    var wrap=t.closest('.secbody');
+    wrap.querySelectorAll('.tab').forEach(function(x){x.classList.remove('active')});
+    wrap.querySelectorAll('.tabpane').forEach(function(x){x.classList.remove('active')});
     t.classList.add('active');
     var p=document.getElementById(t.getAttribute('data-pane'));
     if(p)p.classList.add('active');
@@ -870,17 +847,9 @@ document.querySelectorAll('.tab').forEach(function(t){
 var wm=document.getElementById('wire-more');
 if(wm){var wmOrig=wm.textContent;
   wm.addEventListener('click',function(){
-    var p=wm.closest('.pbody');p.classList.toggle('wire-open');
-    wm.textContent=p.classList.contains('wire-open')?'SHOW LESS \\u25B4':wmOrig;
+    var p=wm.closest('.secbody');p.classList.toggle('wire-open');
+    wm.textContent=p.classList.contains('wire-open')?'SHOW LESS \\u2013':wmOrig;
   });}
-/* hero -> stats deck */
-var hm=document.getElementById('hero-more');
-if(hm)hm.addEventListener('click',function(){
-  var deck=document.querySelector('.panel.deck');
-  if(!deck)return;
-  deck.classList.remove('collapsed');
-  deck.scrollIntoView({behavior:'smooth',block:'center'});
-});
 /* screenshot mode */
 if(location.hash==='#png')document.body.classList.add('expand-all');
 """
@@ -892,18 +861,21 @@ def build_page(brief, brief_age, gex, gex_age, summary, summary_age,
     if summary:
         n_sessions = str((summary.get("sample") or {}).get("sessions", "—"))
     built = datetime.now(ET).strftime("%Y-%m-%d %H:%M ET")
-    edition = ('PUBLIC EDITION · PRICE DATA ONLY<br>' if public else "")
+    edition = ("PUBLIC EDITION · PRICE DATA ONLY<br>" if public else "")
 
-    header = (
-        '<header class="panel">'
-        '<div class="wordmark">NQ <b>SITUATION ROOM</b><span class="cursorblk"></span></div>'
-        '<div class="hclocks">'
-        '<div><span class="lbl">UTC</span><span class="val" id="hdr-utc">--:--:--</span></div>'
-        '<div><span class="lbl">NEW YORK</span><span class="val js-et">--:--:--</span></div>'
-        "</div>"
-        f'<div class="hright">{edition}SWEEPSTATS DATA · <span class="n">n={esc(n_sessions)} SESSIONS</span>'
-        f"<br>BUILD {esc(built)}</div>"
-        "</header>")
+    mast = (
+        '<div class="mast">'
+        '<div class="brand">NQ <em>SITUATION ROOM</em>'
+        '<span class="bsub">BY SWEEPSTATS</span></div>'
+        '<nav class="mnav">'
+        '<a href="#script">SCRIPT</a><span class="nsep">/</span>'
+        '<a href="#structure">STRUCTURE</a><span class="nsep">/</span>'
+        '<a href="#stats">NUMBERS</a><span class="nsep">/</span>'
+        '<a href="#wire">WIRE</a></nav>'
+        f'<div class="mmeta"><span class="clk" id="mast-ny">--:-- NY</span> · '
+        f'<span id="mast-utc">--:-- UTC</span><br>'
+        f'{edition}<span class="n">n={esc(n_sessions)} SESSIONS</span> · BUILD {esc(built)}</div>'
+        '</div><div class="rule2"></div>')
 
     def src_age(label: str, age: float | None) -> str:
         if age is None:
@@ -916,29 +888,26 @@ def build_page(brief, brief_age, gex, gex_age, summary, summary_age,
                        src_age("LEVELS" if public else "GEX", gex_age),
                        src_age("STATS", summary_age)))
     footer = (
-        "<footer>"
-        f"<span>{ages}</span>"
-        "<span>Past frequency ≠ future probability. Not financial advice.</span>"
-        "<span>SweepStats — NQ session-level statistics</span>"
-        "</footer>")
+        '<div class="foot">'
+        f'<div><span class="fh">SWEEPSTATS</span>NQ session-level statistics — '
+        f'a compounding dataset, updated daily.<br>{ages}</div>'
+        '<div class="fc"><span class="fh">METHOD</span>5-minute closes decide. '
+        'Fakeout = reclaim within 2 bars of the first NY breach of an '
+        'Asia/London extreme.</div>'
+        '<div class="fr"><span class="fh">DISCLAIMER</span>Past frequency ≠ future '
+        'probability.<br>Not financial advice.</div>'
+        "</div>")
 
     return (
         "<!doctype html><html><head><meta charset='utf-8'>"
         "<title>NQ Situation Room</title>"
-        f"<style>{CSS}</style></head><body><div class='wrap'>"
-        + header
-        + build_tape(brief, brief_age)
-        + '<div class="row2">'
-        + (build_public_ladder(gex, brief, summary, gex_age) if public
-           else build_ladder(gex, summary, gex_age))
-        + build_clock(summary)
-        + build_hero(summary, summary_age)
-        + "</div>"
-        + build_script(gex, summary)
-        + '<div class="row4">'
-        + build_stats_deck(summary, summary_age)
+        f"<style>{CSS}</style></head><body><div class='page'>"
+        + mast
+        + build_ticker(brief)
+        + build_hero(gex, summary)
+        + build_structure(gex, brief, summary, gex_age, public)
+        + build_stats(summary, summary_age)
         + build_wire(brief, brief_age)
-        + "</div>"
         + footer
         + f"<script>{JS}</script></div></body></html>")
 
@@ -956,7 +925,7 @@ def render_png(html_path: Path, png_path: Path, height: int) -> bool:
     """Render with a fresh headless Chrome — never the port-9222 trading one.
 
     Appends #png so the page opens in expand-all mode (tabs stacked, wire
-    fully shown) for the shareable screenshot.
+    fully shown, ticker frozen) for the shareable screenshot.
     """
     chrome = _find_chrome()
     if chrome is None:
@@ -995,7 +964,7 @@ def main() -> None:
     print(f"HTML -> {out_html}")
 
     if args.png and render_png(out_html, out_png,
-                               height=1330 if args.public else 1680):
+                               height=2210 if args.public else 2640):
         print(f"PNG  -> {out_png}")
     if args.open:
         webbrowser.open(out_html.resolve().as_uri())
