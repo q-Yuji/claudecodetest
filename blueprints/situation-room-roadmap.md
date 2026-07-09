@@ -183,6 +183,32 @@ Track retention from subscriber #1.
 Independent gamma computation (unlocks regime slices publicly), more
 instruments, API access for the dataset.
 
+## Tiering (added 2026-07-10, after the v1 draft was built)
+
+The GEX constraint is solved by architecture, not by dropping features —
+`situation_room.py` now renders two editions from one codebase:
+
+- **Base product (`--public`)**: price-derived data only. The GEX ladder
+  is replaced by the **Session Liquidity Ladder** — Asia/London H/L +
+  prev close, each annotated with its SweepStats odds (fakeout %,
+  stop-run depth, bounce). Nothing on the page requires a licensed feed
+  beyond standard price data. This is the sellable core, and the ladder
+  is arguably STRONGER here: universal levels every trader watches,
+  wearing proprietary odds nobody else has.
+- **Premium / BYO-GEX tier (user idea, 2026-07-10)**: subscribers who
+  already pay for GEX Suite connect their own feed and the GEX ladder
+  panel lights up for them privately. The product never redistributes
+  GEX data — each user displays what they personally license (same model
+  as the repo reading the user's own chart). CAUTION before shipping
+  this tier: the user's standing rule is "cannot link the product to GEX
+  Suite" — an official "works with GEX Suite" integration needs the
+  mentor's blessing; an unofficial one must stay generic ("import your
+  own levels JSON/CSV"), which also opens it to SpotGamma/MenthorQ
+  subscribers and avoids naming anyone.
+
+DECISION: the paid base tier must be complete without any BYO data —
+premium integrations are additive, never load-bearing.
+
 ## DECISIONS made in this doc
 - DECISION: v1 blueprint stays as-is; conditional features are Phase 2
   panels added to the same `situation_room.py`, not a rewrite.

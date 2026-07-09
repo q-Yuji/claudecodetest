@@ -31,8 +31,6 @@ from zoneinfo import ZoneInfo
 
 ROOT = Path(__file__).parent
 RESULTS = ROOT / "results"
-OUT_HTML = RESULTS / "situation_room.html"
-OUT_PNG = RESULTS / "situation_room.png"
 
 ET = ZoneInfo("America/New_York")
 STALE_HOURS = 24.0
@@ -218,6 +216,49 @@ def build_ladder(gex: dict | None, age: float | None) -> str:
     sym = esc(gex.get("symbol") or "")
     body = f'<div class="ladder">{"".join(parts)}</div>'
     return panel(f"GEX Level Ladder · {sym}", body, age)
+
+
+def build_public_ladder(gex: dict | None, brief: dict | None,
+                        summary: dict | None, age: float | None) -> str:
+    """Product-edition ladder: price-derived session levels only (no GEX
+    Suite data), each annotated with its SweepStats first-touch odds."""
+    amd = (gex or {}).get("session_amd") or {}
+    ft = (summary or {}).get("first_touch") or {}
+    nq = ((brief or {}).get("ctx") or {}).get("NQ") or {}
+    last = nq.get("last") if isinstance(nq.get("last"), (int, float)) \
+        else (gex or {}).get("current_price")
+    if not amd and last is None:
+        return panel("Session Liquidity Ladder", NOFEED)
+
+    rows: list[tuple[float, str]] = []
+    for key, label in (("asia_high", "ASIA HIGH"), ("asia_low", "ASIA LOW"),
+                       ("london_high", "LONDON HIGH"), ("london_low", "LONDON LOW")):
+        v = amd.get(key)
+        if not isinstance(v, (int, float)):
+            continue
+        st = ft.get(key) or {}
+        odds = ""
+        if st:
+            odds = (f'<span class="lodds mono">{float(st.get("fakeout_pct") or 0):.0f}% FAKE '
+                    f'· stops run ≈{float(st.get("fakeout_median_overshoot_pts") or 0):.0f} pts '
+                    f'· +{float(st.get("fakeout_median_mfe60_pts") or 0):.0f}/60m</span>')
+        rows.append((float(v),
+                     f'<div class="lrow amd roomy"><span class="lname">{label}</span>'
+                     f'{odds}<span class="lpx mono">{fnum(float(v))}</span></div>'))
+    pc = nq.get("prev_close")
+    if isinstance(pc, (int, float)):
+        rows.append((float(pc),
+                     f'<div class="lrow corr roomy"><span class="lname">PREV CLOSE</span>'
+                     f'<span class="lpx mono">{fnum(float(pc))}</span></div>'))
+    if isinstance(last, (int, float)):
+        rows.append((float(last),
+                     f'<div class="lrow last roomy"><span class="lname">► LAST'
+                     f'</span><span class="lpx mono">{fnum(float(last))}</span></div>'))
+    rows.sort(key=lambda r: r[0], reverse=True)
+    note = ('<div class="lnote">levels computed from price data · '
+            'odds from the SweepStats dataset</div>')
+    return panel("Session Liquidity Ladder · NQ",
+                 f'<div class="ladder">{"".join(r[1] for r in rows)}</div>{note}', age)
 
 
 def _buckets_html(summary: dict | None) -> str:
@@ -459,6 +500,11 @@ header.panel::before{content:"";position:absolute;inset:0 0 auto 0;height:5px;
 .lrow.last{background:#1a2129;border:1px solid #ffb454;border-radius:3px;margin:2px 0;padding:3px 6px}
 .lrow.last .lname{color:#ffb454;font-weight:600}.lrow.last .lpx{color:#ffb454;font-size:14px}
 .lrow.gap .lname{color:#2b3844;letter-spacing:4px}
+.lrow.roomy{padding:9px 8px;font-size:14px}
+.lrow.roomy .lname{font-size:13px}.lrow.roomy .lpx{font-size:15px}
+.lodds{margin-left:14px;font-size:10.5px;color:#5c6a78;letter-spacing:.04em}
+.lnote{margin-top:10px;font:10px "Cascadia Mono","Consolas",monospace;
+  color:#5c6a78;letter-spacing:.08em}
 .dots{color:#ffb454;font-size:9px;letter-spacing:2px}
 /* clock */
 .clockbig{font-size:34px;text-align:center;margin-top:6px}
@@ -565,11 +611,13 @@ tick();setInterval(tick,1000);
 """
 
 
-def build_page(brief, brief_age, gex, gex_age, summary, summary_age) -> str:
+def build_page(brief, brief_age, gex, gex_age, summary, summary_age,
+               public: bool = False) -> str:
     n_sessions = "—"
     if summary:
         n_sessions = str((summary.get("sample") or {}).get("sessions", "—"))
     built = datetime.now(ET).strftime("%Y-%m-%d %H:%M ET")
+    edition = ('PUBLIC EDITION · PRICE DATA ONLY<br>' if public else "")
 
     header = (
         '<header class="panel">'
@@ -578,7 +626,7 @@ def build_page(brief, brief_age, gex, gex_age, summary, summary_age) -> str:
         '<div><span class="lbl">UTC</span><span class="val" id="hdr-utc">--:--:--</span></div>'
         '<div><span class="lbl">NEW YORK</span><span class="val js-et">--:--:--</span></div>'
         "</div>"
-        f'<div class="hright">SWEEPSTATS DATA · <span class="n">n={esc(n_sessions)} SESSIONS</span>'
+        f'<div class="hright">{edition}SWEEPSTATS DATA · <span class="n">n={esc(n_sessions)} SESSIONS</span>'
         f"<br>BUILD {esc(built)}</div>"
         "</header>")
 
@@ -589,7 +637,8 @@ def build_page(brief, brief_age, gex, gex_age, summary, summary_age) -> str:
             return f'{label} <span class="amber">{round(age)}H STALE</span>'
         return f"{label} {round(age)}H"
 
-    ages = " · ".join((src_age("BRIEF", brief_age), src_age("GEX", gex_age),
+    ages = " · ".join((src_age("BRIEF", brief_age),
+                       src_age("LEVELS" if public else "GEX", gex_age),
                        src_age("STATS", summary_age)))
     footer = (
         "<footer>"
@@ -605,7 +654,8 @@ def build_page(brief, brief_age, gex, gex_age, summary, summary_age) -> str:
         + header
         + build_tape(brief, brief_age)
         + '<div class="row2">'
-        + build_ladder(gex, gex_age)
+        + (build_public_ladder(gex, brief, summary, gex_age) if public
+           else build_ladder(gex, gex_age))
         + build_clock(summary)
         + build_hero(summary, summary_age)
         + "</div>"
@@ -628,7 +678,7 @@ def _find_chrome() -> Path | None:
     return None
 
 
-def render_png() -> bool:
+def render_png(html_path: Path, png_path: Path) -> bool:
     """Render with a fresh headless Chrome — never the port-9222 trading one."""
     chrome = _find_chrome()
     if chrome is None:
@@ -636,8 +686,8 @@ def render_png() -> bool:
         return False
     subprocess.run(
         [str(chrome), "--headless=new", "--disable-gpu", "--hide-scrollbars",
-         f"--screenshot={OUT_PNG.resolve()}", "--window-size=1440,1680",
-         OUT_HTML.resolve().as_uri()],
+         f"--screenshot={png_path.resolve()}", "--window-size=1440,1680",
+         html_path.resolve().as_uri()],
         check=True, capture_output=True, timeout=120)
     return True
 
@@ -646,23 +696,30 @@ def render_png() -> bool:
 
 def main() -> None:
     ap = argparse.ArgumentParser(description="Render the NQ Situation Room page")
-    ap.add_argument("--png", action="store_true", help="also render situation_room.png")
+    ap.add_argument("--png", action="store_true", help="also render the PNG")
     ap.add_argument("--open", action="store_true", help="open the HTML in a browser")
+    ap.add_argument("--public", action="store_true",
+                    help="product edition: price-derived levels only, no GEX data")
     args = ap.parse_args()
 
     brief, brief_age = load("morning_brief.json", "generated")
     gex, gex_age = load("gex_levels.json", "timestamp")
     summary, summary_age = load("session_stats_summary.json", "generated")
 
-    OUT_HTML.write_text(
-        build_page(brief, brief_age, gex, gex_age, summary, summary_age),
-        encoding="utf-8")
-    print(f"HTML -> {OUT_HTML}")
+    suffix = "_public" if args.public else ""
+    out_html = RESULTS / f"situation_room{suffix}.html"
+    out_png = RESULTS / f"situation_room{suffix}.png"
 
-    if args.png and render_png():
-        print(f"PNG  -> {OUT_PNG}")
+    out_html.write_text(
+        build_page(brief, brief_age, gex, gex_age, summary, summary_age,
+                   public=args.public),
+        encoding="utf-8")
+    print(f"HTML -> {out_html}")
+
+    if args.png and render_png(out_html, out_png):
+        print(f"PNG  -> {out_png}")
     if args.open:
-        webbrowser.open(OUT_HTML.resolve().as_uri())
+        webbrowser.open(out_html.resolve().as_uri())
 
 
 if __name__ == "__main__":

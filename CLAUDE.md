@@ -86,7 +86,7 @@ Commit work to git regularly throughout a session — after each meaningful chan
 
 ## Situation Room
 
-`python situation_room.py` renders `results/situation_room.html` — the dark war-room "NQ Situation Room" page (SweepStats product wrapper, blueprint #6 + roadmap's Today's Script panel) from `results/morning_brief.json`, `results/gex_levels.json`, and `results/session_stats_summary.json`. Flags: `--png` (renders `results/situation_room.png` via a fresh headless Chrome, never the port-9222 one), `--open` (open in browser). Read-only over its inputs; regenerate whenever asked ("open the situation room" / "update the war room"). Panels degrade rather than hide: a missing input shows "NO FEED", a >24h-old input dims with an amber "STALE" chip. Both outputs are gitignored.
+`python situation_room.py` renders `results/situation_room.html` — the dark war-room "NQ Situation Room" page (SweepStats product wrapper, blueprint #6 + roadmap's Today's Script panel) from `results/morning_brief.json`, `results/gex_levels.json`, and `results/session_stats_summary.json`. Flags: `--png` (renders `results/situation_room.png` via a fresh headless Chrome, never the port-9222 one), `--open` (open in browser), `--public` (product edition → `results/situation_room_public.html/png`: no GEX data, session-liquidity ladder with SweepStats odds instead — the sellable base tier). Read-only over its inputs; regenerate whenever asked ("open the situation room" / "update the war room"). Panels degrade rather than hide: a missing input shows "NO FEED", a >24h-old input dims with an amber "STALE" chip. Both outputs are gitignored.
 
 ## End-of-day journal — AUTOMATED PROTOCOL
 

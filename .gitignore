@@ -1,4 +1,4 @@
-__pycache__/
+﻿__pycache__/
 *.pyc
 
 results/morning_brief.html
@@ -15,5 +15,5 @@ results/stats_card_caption.txt
 data/tradeify_state.json
 backtest/vendor_data/*
 !backtest/vendor_data/README.md
-results/situation_room.html
-results/situation_room.png
+results/situation_room*.html
+results/situation_room*.png
