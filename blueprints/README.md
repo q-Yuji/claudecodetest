@@ -20,3 +20,5 @@ Planner decisions are marked `DECISION:` inside each blueprint; builders
 mark gaps with `ASSUMPTION:` — scan for both before trusting a build.
 
 Status (2026-07-08): #1 tilt-guard-v1 BUILT (by Fable 5 directly — it came back; all DoD checks passed, F9 hotkey needs its Startup shortcut added manually). #2 sweepstats-daily-pipeline BUILT (task "SweepStats Daily" registered, weekdays 18:30; dataset at 47 sessions). #4 gex-history-capture BUILT (folded into startup step 3; first real append happens next session morning). #3 sweepstats-deep-history BUILT (importer + fixture test pass; waiting only on the ~$10–30 vendor file purchase — see backtest/vendor_data/README.md). #5 friction-journal BUILT (F8 hotkey + review script; the one-week logging experiment starts when the F8 Startup shortcut is added). #1–5 ALL BUILT. #6 situation-room SPEC'D 2026-07-08 (not built) — buildable by Sonnet any time; no Fable dependency remains.
+
+Product planning (2026-07-09): `situation-room-roadmap.md` — Fable 5's feature/sellability roadmap for the Situation Room (what justifies a subscription, phases 0–5, monetization path). Not a build spec; #6 remains the v1 spec.

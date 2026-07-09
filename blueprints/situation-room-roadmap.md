@@ -1,0 +1,146 @@
+# Situation Room — product roadmap (what makes it worth building & sellable)
+
+Written by Fable 5, 2026-07-09, planning session before user is away
+(back Sunday 2026-07-12 evening). This is NOT a build spec — blueprint #6
+(`situation-room.md`) is the v1 build spec and stands unchanged. This doc
+answers the open question from 2026-07-08: **which capabilities justify a
+subscription**, ranked through the user's filter (proven demand · specific
+wedge · distribution).
+
+## Core thesis
+
+SitDeck went viral on looks; looks are the *distribution*, not the product.
+A generic trading war room loses to TradingView on day one. The wedge is
+that the page can answer, live, the question every NQ session trader asks
+and nobody serves with real numbers:
+
+> "Given what happened overnight, what are the odds of THIS trade, right now?"
+
+Static aggregates ("61% of first touches are fakeouts") are content — great
+for posting, not worth paying for. **Conditioning** — today's pattern
+matched against the compounding dataset, per level, per time of day, with
+follow-through and stop-run distances attached — is the utility. The
+dataset that makes that possible compounds daily and is the moat.
+
+## Feature ladder, ranked by (live-trader utility × uniqueness)
+
+### 1. "Today's Script" — conditional bias panel  ★ the killer feature
+At London close (07:00 ET-ish), classify today's overnight pattern
+(which of the 4 london_manipulation buckets) and surface the matching
+historical distribution:
+- "London swept Asia High → NY up 62% of days, median +147 pts (n=21)"
+- Fakeout odds for each still-untested level today.
+All computable NOW from `session_stats_summary.json` + today's session
+levels (the AMD engine already extracts them). This single panel converts
+the page from "stats site" to "daily decision tool" and is v2's centerpiece.
+
+### 2. Live level board with per-level playbook numbers
+Asia H/L, London H/L rows, each showing live status (UNTESTED / TOUCHED →
+FAKEOUT or BREAK) plus, on the untested ones, the playbook if touched:
+- fakeout probability (58–69% depending on level),
+- **median overshoot = stop-run depth** ("sweeps run 25–64 pts past this
+  level before reversing — a stop inside that band is donated"),
+- median reversal MFE60 (the target-setting number).
+The overshoot band is the most directly actionable stat in the whole
+dataset and nobody publishes it.
+
+### 3. First-touch alerts — the paid moment of value
+Discord/Telegram push the moment NQ first touches a tracked level, with
+the odds attached ("Asia High touched 09:47 · historically 58% fakeout ·
+median overshoot 25 pts · median bounce +121 pts/60m"). The screenshot is
+free marketing; the alert AT the touch is what a subscription buys.
+Event-driven, not polled — consistent with [[feedback-ondemand-over-polling]].
+
+### 4. Time-of-day odds strip
+The `time_buckets` data, live-highlighted: a 09:45 touch and a 13:30 touch
+are different trades (57.6% vs 72.7% fakeout — but late-day median MFE60
+is only 11 pts: "the afternoon fade wins and still pays nothing" is
+exactly the kind of insight that makes the product feel smart).
+
+### 5. Morning-after scoreboard — self-grading = trust
+Auto-compare yesterday's Script against what happened, archive every card
+with timestamp. A public running record of "we said 62%, out-of-sample
+it's running X%" is the credibility asset that separates this from guru
+anecdotes — and it's a SECOND daily auto-post (morning script + evening
+scoreboard = 2 content units/day from the same pipeline).
+
+### 6. Risk/sizing calculator — prop-aware wedge combo
+Generic prop-compliance is OCCUPIED (TradesViz etc.), but nobody fuses
+setup statistics with prop math: median MAE120 on an Asia-High fakeout is
+51.5 pts ≈ **$1,030/contract on NQ — already past a $1k daily floor on one
+lot**. "Given your remaining drawdown, max size for this setup's
+historical adverse excursion" is a 20-line calculation with real teeth.
+Seed logic exists in `data/tradeify_account.py`.
+
+### 7. Regime slicing (needs bigger n)
+Fakeout % conditioned on gamma regime / VIX band / day-of-week.
+`backtest/gex_history.json` is being banked daily for exactly this.
+**Constraint:** the public product cannot ship anything GEX-Suite-derived
+(user rule, 2026-07-07) — regime slices stay personal-page-only until an
+independent gamma source exists (own computation from CBOE/OCC options
+data — real moat, big lift, parked as Phase 5 research).
+
+### 8. Multi-instrument (ES first)
+The engine is instrument-agnostic once data is bought. Each instrument
+multiplies daily content output and addressable audience. ES is the
+obvious second (same session structure, biggest futures crowd).
+
+## What NOT to build (settled by prior market scans — don't relitigate)
+- Drag-and-drop widget platform / 180-feed aggregation (SitDeck's commodity
+  half; losing fight vs TradingView).
+- Generic trade journal, generic prop-compliance dashboard (OCCUPIED).
+- Broker integration / order routing.
+- Anything branded or fed by GEX Suite in the public product.
+
+## Phases
+
+**Phase 0 — prerequisites (now / this month)**
+- BUY THE VENDOR DATA (~$10–30, importer already built and tested).
+  n=48 → n≈250 is the single highest-leverage unlock: every conditional
+  slice above is noise at n=48 (the "both" bucket has ONE day) and
+  respectable at n=250. Nothing sellable before this.
+- Pick the brand name (SweepStats is the working name; product brand must
+  be separate from personal identity per sellability criteria).
+- Daily pipeline keeps compounding automatically (already live, 18:30).
+
+**Phase 1 — v1 wrapper (blueprint #6, as spec'd, unchanged)**
+Static shareable artifact. Upgrades the posting loop, becomes the brand
+face. Sonnet-buildable cold. Build any time.
+
+**Phase 2 — utility panels (personal tool, local, no server)**
+Features 1, 2, 4, 5 as new panels in situation_room.py, computed from the
+dataset + today's session levels. This is where "worth building
+trading-wise" gets settled — the user trades with it every session before
+anyone is asked to pay. Dogfooding = retention signal from user #1.
+
+**Phase 3 — public face (still no server)**
+Pipeline pushes a REDACTED page (no account P&L, no GEX panel, no
+positions) to static hosting (Cloudflare/GitHub Pages) after the morning
+run and the 18:30 run. Free tier = yesterday's numbers + headline stats.
+Email capture. Two auto-posts/day drive traffic to it.
+
+**Phase 4 — paid**
+Discord bot delivering feature 3 (touch alerts with odds) + full
+conditional dashboards + feature 6 sizing + ES. Sell via Whop/Discord
+subscription first — zero auth/billing to build, and futures traders
+already live in Discord. Web accounts only after revenue proves demand.
+Track retention from subscriber #1.
+
+**Phase 5 — research options**
+Independent gamma computation (unlocks regime slices publicly), more
+instruments, API access for the dataset.
+
+## DECISIONS made in this doc
+- DECISION: v1 blueprint stays as-is; conditional features are Phase 2
+  panels added to the same `situation_room.py`, not a rewrite.
+- DECISION: monetize via Discord/Whop before building accounts.
+- DECISION: vendor-data purchase is a hard gate before any public claim —
+  headline stats must survive n≈250 before they're marketed.
+- DECISION: GEX-derived anything stays off the public product until an
+  independent gamma source exists.
+
+## Open (user to settle, no rush)
+- Brand name.
+- Whether Phase 1+2 get built during the away weekend or after Sunday.
+- Pricing shape (flat monthly vs alert-tier split) — decide after Phase 2
+  dogfooding, with real usage feel.
