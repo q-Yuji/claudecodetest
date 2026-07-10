@@ -183,6 +183,33 @@ Track retention from subscriber #1.
 Independent gamma computation (unlocks regime slices publicly), more
 instruments, API access for the dataset.
 
+## USP (added 2026-07-10 — user: "need stuff that makes this truly unique")
+
+A USP is the sentence a trader repeats to a friend, not a feature list.
+Features are copyable in a quarter; the moats are data only we have and
+proof only time can build. Ranked candidates:
+
+1. **"The morning call that grades itself."** Daily directional read,
+   publicly scored next morning, forever. A year of forward-graded calls
+   cannot be backfilled by any competitor — the time moat. Turns being
+   unknown into an asset: don't ask for trust, show the scoreboard.
+2. **"We tell you where your stop dies."** The overshoot distribution
+   (stops run ≈25–64 pts past the level before reversing) = placement
+   geometry, not outcome probability. Emotionally resonant, unavailable
+   anywhere, screenshot-native.
+3. **"Odds your account can survive."** Stats × prop drawdown math —
+   personal, sticky, aimed at what kills 70% of the target customers.
+
+NOT the USP: the aesthetic (distribution, copyable), the war-room format,
+generic session stats (Edgeful's turf), breadth of instruments/reports
+(the incumbent's game).
+
+How to find it (not from a chair): (a) dogfood two weeks — the number the
+user's eyes go to at 9:28am IS the product; (b) the daily posting loop is
+a USP detector — the stat that gets quoted/argued-with in replies wins.
+Weekend questions for the user: which of the three would HE pay $39/mo
+for; the one-sentence pitch without the word "dashboard"; the name.
+
 ## Tiering (added 2026-07-10, after the v1 draft was built)
 
 The GEX constraint is solved by architecture, not by dropping features —
