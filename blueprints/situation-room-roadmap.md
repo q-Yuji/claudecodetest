@@ -138,6 +138,37 @@ The engine is instrument-agnostic once data is bought. Each instrument
 multiplies daily content output and addressable audience. ES is the
 obvious second (same session structure, biggest futures crowd).
 
+## Concept expansion map (added 2026-07-10 — user: "there is more to
+trading than London highs / Asia lows")
+
+Correct — Asia/London is concept #1 through what is really a
+**concept-quantification engine**: pin a falsifiable definition → detect
+per session → measure outcomes → compound → grade publicly. Expansion
+ranked by computability from existing 5m OHLCV + where stops actually
+rest:
+
+- **Tier 1 (same framework, bigger audience):** prior day H/L (THE
+  stop-cluster levels — build first), previous week H/L, midnight open /
+  NY open anchors, equal highs/lows (liquidity pools, definable as two
+  swings within X pts).
+- **Tier 2 (session behavior):** killzone stats (10–11 silver bullet,
+  lunch reversal, MOC), day-of-week conditioning (which weekday forms the
+  weekly H/L — classic ICT claim, never tested), prior-day-context
+  conditioning (after up day / inside day / big range), FVG fill rates,
+  NWOG/NDOG respect.
+- **Tier 3 (uniquely ours): SMT divergence** — NQ vs ES at sweeps; the
+  user trades SMT confluence personally (column in my_trades.csv), data
+  is already dual-instrument, and NOBODY publishes "sweep with SMT
+  diverging reverses X% vs Y% without."
+- **Endgame: confluence odds** — Today's Script goes multi-factor
+  ("swept Asia High + above midnight open + Monday → NY up 78%, n=14").
+  This is what a trader faces at 9:28 and no one serves. GATE: needs
+  n≈250 (vendor purchase) — at n=49 stacked conditions are anecdotes.
+
+Anti-trap: this is NOT license to build 150 shallow reports (Edgeful won
+that game). Fewer concepts, deeper treatment: pinned public definition,
+overshoot geometry, forward grading. Sequence: PDH/PDL → SMT → confluence.
+
 ## What NOT to build (settled by prior market scans — don't relitigate)
 - Drag-and-drop widget platform / 180-feed aggregation (SitDeck's commodity
   half; losing fight vs TradingView).
