@@ -169,6 +169,32 @@ Anti-trap: this is NOT license to build 150 shallow reports (Edgeful won
 that game). Fewer concepts, deeper treatment: pinned public definition,
 overshoot geometry, forward grading. Sequence: PDH/PDL → SMT → confluence.
 
+### POSITIONING CORRECTION (2026-07-10, user veto — OVERRIDES the ICT
+framing above and in the demand section)
+
+The user does NOT want an ICT product: he considers most ICT outdated,
+its crowd largely unprofitable, and he never bases trades on it. He uses
+only OTE, order blocks, exhaustion candles, and NWOG — and only as minor
+confluences, never main bias.
+
+- **Brand language: neutral quant, never ICT dialect.** "Overnight range
+  break" not killzone/PO3; "cross-market divergence" not SMT; "stop
+  cluster" not liquidity pool. The phenomena (session extremes, stop
+  runs, first-touch reversals) are microstructure, not ICT — keep them,
+  drop the vocabulary.
+- **Positioning: the anti-guru.** "No gurus. No narratives.
+  Distributions." The engine TESTS claims — including publishing "we
+  tested X: no edge." Negative results are content guru-sellers can
+  never publish; perfectly aligned with the self-grading USP.
+- **Test queue reordered to the user's own confluences:** NWOG
+  respect/fill (precise by construction), OTE-zone return odds after
+  sweep-reversals, order-block hold rates (pin: last opposing candle
+  before displacement), exhaustion-candle reversal odds (definition
+  needs pinning). Dogfooding question it answers: do HIS confluences
+  measurably add edge on NQ?
+- Marketing may still TEST popular ICT claims as myth-buster content
+  (engagement without endorsement) — the brand never adopts the dialect.
+
 ## What NOT to build (settled by prior market scans — don't relitigate)
 - Drag-and-drop widget platform / 180-feed aggregation (SitDeck's commodity
   half; losing fight vs TradingView).
