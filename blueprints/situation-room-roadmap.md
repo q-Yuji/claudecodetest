@@ -231,6 +231,14 @@ public-facing number is computed from raw 5m OHLCV bars by
   free/cheap) vs *redistributing market data* (live price display —
   exchange fees). Keep the public page stats-and-levels, no streaming
   tape, until revenue justifies display licensing.
+- **IBKR's role (user asked 2026-07-10 — cheap API via existing login):**
+  bridge, not production. Personal-use data license can't power a paid
+  service (and voids non-pro status); CP Gateway needs daily interactive
+  2FA login (unattendable); CP API serves no expired contracts (proven
+  2026-07-07), so Databento backfill is needed regardless. USE IBKR for:
+  personal cockpit, dataset cross-validation (HMDS matched yfinance 4/5
+  sessions), and the free-content period. RULE: first paying alert
+  subscriber = feed moves to Databento that day.
 
 ## DECISIONS made in this doc
 - DECISION: v1 blueprint stays as-is; conditional features are Phase 2
