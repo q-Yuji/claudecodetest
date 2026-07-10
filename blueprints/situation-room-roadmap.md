@@ -209,6 +209,29 @@ The GEX constraint is solved by architecture, not by dropping features —
 DECISION: the paid base tier must be complete without any BYO data —
 premium integrations are additive, never load-bearing.
 
+## Production data architecture (added 2026-07-10, user question: "how
+would you get the data when I can't be the host?")
+
+The chart screen-reading exists ONLY because GEX Suite and the Tradovate
+panel have no API — the sellable product never touches a chart. Every
+public-facing number is computed from raw 5m OHLCV bars by
+`session_stats.py`, which already runs unattended daily. Hosted shape:
+
+- **Data vendor:** Databento (CME Globex, NQ) — historical API to backfill
+  the dataset (same purchase already planned) + live/intraday feed for the
+  alert bot. Tens of $/mo at small scale, usage-based.
+- **Pipeline server:** $5–10/mo VPS or scheduled cloud function running the
+  exact current pipeline (pull bars → update dataset → recompute stats →
+  render site → push to static hosting). Replaces the Windows 18:30 task.
+- **Alert bot:** the only real-time consumer — watches live price vs
+  today's levels, fires Discord pings on first touch (the paid tier).
+- **User's machine:** personal cockpit only (GEX ladder, Tradovate reads);
+  never in the product path.
+- **Licensing note:** published statistics are *derived data* (yours,
+  free/cheap) vs *redistributing market data* (live price display —
+  exchange fees). Keep the public page stats-and-levels, no streaming
+  tape, until revenue justifies display licensing.
+
 ## DECISIONS made in this doc
 - DECISION: v1 blueprint stays as-is; conditional features are Phase 2
   panels added to the same `situation_room.py`, not a rewrite.
