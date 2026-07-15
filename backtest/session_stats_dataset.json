@@ -2891,6 +2891,130 @@
     "london_low": null
    },
    "source": "yfinance"
+  },
+  "2026-07-10": {
+   "v": 1,
+   "date": "2026-07-10",
+   "weekday": "Fri",
+   "asia_high": 29964.25,
+   "asia_low": 29804.25,
+   "london_high": 29856.75,
+   "london_low": 29743.75,
+   "london_sweep": "asia_low",
+   "ny_open": 29834.75,
+   "ny_high": 30077.75,
+   "ny_low": 29675.0,
+   "ny_close": 30037.25,
+   "ny_direction": "up",
+   "ny_change_pts": 202.5,
+   "first_touch": {
+    "asia_high": {
+     "kind": "fakeout",
+     "direction": "short",
+     "time": "09:50",
+     "bucket": "09:30-10:00",
+     "level": 29964.25,
+     "extreme": 29968.5,
+     "overshoot_pts": 4.25,
+     "confirm_close": 29937.25,
+     "mfe_30": 92.5,
+     "mfe_60": 262.25,
+     "mfe_120": 262.25,
+     "mae_120": 23.0
+    },
+    "asia_low": {
+     "kind": "fakeout",
+     "direction": "long",
+     "time": "09:40",
+     "bucket": "09:30-10:00",
+     "level": 29804.25,
+     "extreme": 29798.0,
+     "overshoot_pts": 6.25,
+     "confirm_close": 29856.0,
+     "mfe_30": 112.5,
+     "mfe_60": 112.5,
+     "mfe_120": 135.5,
+     "mae_120": 123.0
+    },
+    "london_high": {
+     "kind": "fakeout",
+     "direction": "short",
+     "time": "09:30",
+     "bucket": "09:30-10:00",
+     "level": 29856.75,
+     "extreme": 29936.75,
+     "overshoot_pts": 80.0,
+     "confirm_close": 29856.0,
+     "mfe_30": 3.25,
+     "mfe_60": 181.0,
+     "mfe_120": 181.0,
+     "mae_120": 54.75
+    },
+    "london_low": {
+     "kind": "fakeout",
+     "direction": "long",
+     "time": "10:30",
+     "bucket": "10:00-11:00",
+     "level": 29743.75,
+     "extreme": 29675.0,
+     "overshoot_pts": 68.75,
+     "confirm_close": 29850.0,
+     "mfe_30": 63.0,
+     "mfe_60": 141.5,
+     "mfe_120": 179.0,
+     "mae_120": 0.0
+    }
+   },
+   "source": "yfinance"
+  },
+  "2026-07-13": {
+   "v": 1,
+   "date": "2026-07-13",
+   "weekday": "Mon",
+   "asia_high": 30041.0,
+   "asia_low": 29682.0,
+   "london_high": 29754.0,
+   "london_low": 29585.5,
+   "london_sweep": "asia_low",
+   "ny_open": 29710.0,
+   "ny_high": 29752.5,
+   "ny_low": 29393.25,
+   "ny_close": 29466.5,
+   "ny_direction": "down",
+   "ny_change_pts": -243.5,
+   "first_touch": {
+    "asia_high": null,
+    "asia_low": {
+     "kind": "break",
+     "direction": "short",
+     "time": "09:30",
+     "bucket": "09:30-10:00",
+     "level": 29682.0,
+     "extreme": 29552.25,
+     "overshoot_pts": 129.75,
+     "confirm_close": 29596.0,
+     "mfe_30": 78.0,
+     "mfe_60": 107.5,
+     "mfe_120": 107.5,
+     "mae_120": 200.25
+    },
+    "london_high": null,
+    "london_low": {
+     "kind": "fakeout",
+     "direction": "long",
+     "time": "09:40",
+     "bucket": "09:30-10:00",
+     "level": 29585.5,
+     "extreme": 29552.25,
+     "overshoot_pts": 33.25,
+     "confirm_close": 29596.0,
+     "mfe_30": 66.5,
+     "mfe_60": 128.0,
+     "mfe_120": 156.5,
+     "mae_120": 63.75
+    }
+   },
+   "source": "yfinance"
   }
  }
 }
