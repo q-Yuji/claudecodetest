@@ -3015,6 +3015,104 @@
     }
    },
    "source": "yfinance"
+  },
+  "2026-07-14": {
+   "v": 1,
+   "date": "2026-07-14",
+   "weekday": "Tue",
+   "asia_high": 29541.25,
+   "asia_low": 29303.5,
+   "london_high": 29649.75,
+   "london_low": 29545.5,
+   "london_sweep": "asia_high",
+   "ny_open": 29811.0,
+   "ny_high": 29895.75,
+   "ny_low": 29567.5,
+   "ny_close": 29786.75,
+   "ny_direction": "down",
+   "ny_change_pts": -24.25,
+   "first_touch": {
+    "asia_high": {
+     "kind": "break",
+     "direction": "long",
+     "time": "09:30",
+     "bucket": "09:30-10:00",
+     "level": 29541.25,
+     "extreme": 29815.75,
+     "overshoot_pts": 274.5,
+     "confirm_close": 29754.25,
+     "mfe_30": 54.25,
+     "mfe_60": 85.5,
+     "mfe_120": 141.5,
+     "mae_120": 248.25
+    },
+    "asia_low": null,
+    "london_high": {
+     "kind": "break",
+     "direction": "long",
+     "time": "09:30",
+     "bucket": "09:30-10:00",
+     "level": 29649.75,
+     "extreme": 29815.75,
+     "overshoot_pts": 166.0,
+     "confirm_close": 29754.25,
+     "mfe_30": 54.25,
+     "mfe_60": 85.5,
+     "mfe_120": 141.5,
+     "mae_120": 248.25
+    },
+    "london_low": null
+   },
+   "source": "yfinance"
+  },
+  "2026-07-15": {
+   "v": 1,
+   "date": "2026-07-15",
+   "weekday": "Wed",
+   "asia_high": 30019.25,
+   "asia_low": 29745.5,
+   "london_high": 30062.5,
+   "london_low": 29872.0,
+   "london_sweep": "asia_high",
+   "ny_open": 29955.25,
+   "ny_high": 29977.5,
+   "ny_low": 29397.0,
+   "ny_close": 29700.5,
+   "ny_direction": "down",
+   "ny_change_pts": -254.75,
+   "first_touch": {
+    "asia_high": null,
+    "asia_low": {
+     "kind": "break",
+     "direction": "short",
+     "time": "10:20",
+     "bucket": "10:00-11:00",
+     "level": 29745.5,
+     "extreme": 29639.25,
+     "overshoot_pts": 106.25,
+     "confirm_close": 29689.5,
+     "mfe_30": 152.75,
+     "mfe_60": 163.0,
+     "mfe_120": 263.5,
+     "mae_120": 62.5
+    },
+    "london_high": null,
+    "london_low": {
+     "kind": "fakeout",
+     "direction": "long",
+     "time": "09:35",
+     "bucket": "09:30-10:00",
+     "level": 29872.0,
+     "extreme": 29852.0,
+     "overshoot_pts": 20.0,
+     "confirm_close": 29882.25,
+     "mfe_30": 10.25,
+     "mfe_60": 10.25,
+     "mfe_120": 10.25,
+     "mae_120": 325.5
+    }
+   },
+   "source": "yfinance"
   }
  }
 }
