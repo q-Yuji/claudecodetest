@@ -58,6 +58,11 @@ def build_card(sb: dict) -> str:
     act_html = (f'<span class="{"up" if act > 0 else "down"}">{act:+.0f} pts</span>')
     stamp = (f'<span class="stamp hero-stamp {"hit" if lt["hit"] else "miss"}">'
              f'{"HIT" if lt["hit"] else "MISS"}</span>')
+    ev_names = {"opex": "OPEX", "quad_witching": "quad witching",
+                "vix_exp": "VIX expiration", "cpi": "CPI", "fomc": "FOMC"}
+    evs = [ev_names.get(k, k) for k in (lt.get("events") or [])]
+    ev_note = (f' <span class="dim">({" + ".join(evs)} day — expiry/macro '
+               f'flows can override structure)</span>' if evs else "")
 
     dir_pct = float(r["hit_pct"])
     dir_verdict = ('<span class="stamp hit">Edge</span>' if dir_pct >= 60 else
@@ -88,7 +93,7 @@ def build_card(sb: dict) -> str:
   <div class="hero-label">{SWEEP_LABELS[lt['pattern']]} — the data said NY closes
     <b>{lt['call']}</b> ({(float(lt['said_up_pct']) if lt['call'] == 'up'
     else 100 - float(lt['said_up_pct'])):.0f}% of {lt['prior_days']}
-    prior days with this pattern). New York closed {act_html}.</div>
+    prior days with this pattern). New York closed {act_html}.{ev_note}</div>
   {_l10(r['last10'])}
 
   <div class="sec">

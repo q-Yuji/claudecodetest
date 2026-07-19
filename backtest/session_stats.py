@@ -51,6 +51,8 @@ from zoneinfo import ZoneInfo
 import pandas as pd
 import yfinance as yf
 
+from data.market_events import event_kinds
+
 warnings.filterwarnings("ignore")
 
 ET = ZoneInfo("America/New_York")
@@ -273,6 +275,7 @@ def analyse_session(df: pd.DataFrame, day: date) -> dict | None:
         "ny_close": round(ny_close, 2),
         "ny_direction": "up" if ny_close > ny_open else "down",
         "ny_change_pts": round(ny_close - ny_open, 2),
+        "events": event_kinds(day),
         "first_touch": touches,
     }
 
@@ -342,6 +345,30 @@ def aggregate(sessions: list[dict]) -> dict:
             "fakeout_median_mfe60_pts": _median([e["mfe_60"] for e in fakes]),
         }
 
+    # 4) Event-day behavior (OPEX/CPI/FOMC/... vs ordinary days) — flow days
+    #    are regime overrides; publish their behavior only once n is honest
+    def _ny_range(s: dict) -> float:
+        return float(s["ny_high"]) - float(s["ny_low"])
+
+    plain = [s for s in sessions if not s.get("events")]
+    events = {"none": {
+        "days": len(plain),
+        "ny_up_pct": _pct(sum(1 for s in plain if s["ny_direction"] == "up"),
+                          len(plain)),
+        "median_ny_change_pts": _median([s["ny_change_pts"] for s in plain]),
+        "median_ny_range_pts": _median([_ny_range(s) for s in plain]),
+    }}
+    kinds = sorted({k for s in sessions for k in (s.get("events") or [])})
+    for kind in kinds:
+        sub = [s for s in sessions if kind in (s.get("events") or [])]
+        events[kind] = {
+            "days": len(sub),
+            "ny_up_pct": _pct(sum(1 for s in sub if s["ny_direction"] == "up"),
+                              len(sub)),
+            "median_ny_change_pts": _median([s["ny_change_pts"] for s in sub]),
+            "median_ny_range_pts": _median([_ny_range(s) for s in sub]),
+        }
+
     dates = sorted(s["date"] for s in sessions)
     return {
         "generated": datetime.now(ET).isoformat(timespec="seconds"),
@@ -353,6 +380,7 @@ def aggregate(sessions: list[dict]) -> dict:
         "london_manipulation": london,
         "first_touch": levels,
         "time_buckets": buckets,
+        "event_days": events,
     }
 
 
@@ -382,6 +410,16 @@ def main():
         return
     print(f"    {len(df)} bars ({source}), "
           f"{df.index[0]:%Y-%m-%d} -> {df.index[-1]:%Y-%m-%d}")
+
+    # backfill event flags on records written before the events field existed
+    # (pure function of the date — no bar data needed, safe for any session)
+    backfilled = 0
+    for key, rec in ds["sessions"].items():
+        if "events" not in rec:
+            rec["events"] = event_kinds(date.fromisoformat(key))
+            backfilled += 1
+    if backfilled:
+        print(f"  Backfilled event flags on {backfilled} existing sessions")
 
     all_days = sorted({ts.date() for ts in df.index if ts.weekday() < 5})
     added = 0
@@ -425,6 +463,12 @@ def main():
         if v["touches"]:
             print(f"    {k}  touches={v['touches']:>3}  fakeout {v['fakeout_pct']}%  "
                   f"median reversal 60m {v['fakeout_median_mfe60_pts']}pts")
+    print("\n  Event days vs ordinary days (NY behavior):")
+    for k, v in summary["event_days"].items():
+        if v["days"]:
+            print(f"    {k:<14} n={v['days']:>3}  NY up {v['ny_up_pct']}%  "
+                  f"median move {v['median_ny_change_pts']:+.1f}pts  "
+                  f"median range {v['median_ny_range_pts']:.0f}pts")
     print()
 
 

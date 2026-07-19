@@ -64,6 +64,7 @@ def _grade_day(s: dict, prior: list[dict]) -> dict:
         "said_up_pct": up_pct,
         "actual_direction": s["ny_direction"],
         "actual_change_pts": s["ny_change_pts"],
+        "events": s.get("events") or [],
         "call": None,
         "hit": None,
     }

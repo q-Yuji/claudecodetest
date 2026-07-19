@@ -171,6 +171,17 @@ def build_ticker(brief: dict | None) -> str:
 
 # ------------------------------------------------------------------- hero
 
+def _todays_events() -> list[dict]:
+    try:
+        from data.market_events import events_for
+        return events_for(datetime.now(ET).date())
+    except Exception:
+        return []
+
+
+_EVENT_LABELS = {"opex": "OPEX", "quad_witching": "QUAD WITCH",
+                 "vix_exp": "VIX EXP", "cpi": "CPI", "fomc": "FOMC"}
+
 _SWEEP_KEYS = {"asia high": "asia_high", "asia low": "asia_low",
                "none": "none", "both": "both"}
 _PATTERN_TITLES = {"asia_high": "London sweeps Asia High.",
@@ -211,6 +222,17 @@ def build_hero(gex: dict | None, summary: dict | None) -> str:
         chips += (f'<span class="tag {"up" if bias == "BULLISH" else "dn"}">'
                   f'[ BIAS {esc(bias)} ]</span>')
 
+    # flow-event chips: expiry/macro days are regime overrides — say so
+    todays_events = _todays_events()
+    for ev in todays_events:
+        chips += f'<span class="tag warn">[ {esc(ev["label"])} ]</span>'
+    flow_note = ""
+    if todays_events:
+        flow_note = (
+            '<p class="dek flownote">' +
+            " · ".join(esc(ev["note"]) for ev in todays_events) +
+            " — pattern odds take a back seat on flow days.</p>")
+
     kicker = esc(datetime.now(ET).strftime("%A, %B %d %Y").upper())
     left = (
         f'<div class="kicker mono">{kicker} · OVERNIGHT PATTERN</div>'
@@ -218,6 +240,7 @@ def build_hero(gex: dict | None, summary: dict | None) -> str:
         f'<p class="dek">On the {days} prior days with this pattern, New York closed '
         f'<span class="{"up" if up_pct >= 50 else "dn"}">up {up_pct:.0f}% of the time</span> '
         f'with a median session move of <span class="mono {chg_cls(med)}">{med:+.1f} pts</span>.{low_n}</p>'
+        f'{flow_note}'
         f'<div class="tags mono">{chips}</div>')
 
     right = (
@@ -591,6 +614,9 @@ def build_record(sb: dict | None) -> str:
     act = float(lt["actual_change_pts"])
     stamp = ('<span class="stamp hit">HIT</span>' if lt["hit"]
              else '<span class="stamp miss">MISS</span>')
+    ev_chips = "".join(
+        f' <span class="stamp open">{esc(_EVENT_LABELS.get(k, k).upper())} DAY</span>'
+        for k in (lt.get("events") or []))
     left = (
         f'<div class="kicker mono">LATEST GRADED CALL · {esc(lt["date"])} '
         f'({esc(lt["weekday"]).upper()})</div>'
@@ -599,7 +625,7 @@ def build_record(sb: dict | None) -> str:
         f'<span class="{"up" if lt["call"] == "up" else "dn"}">{esc(lt["call"])} '
         f'— {said:.0f}% of {int(lt["prior_days"])} prior days</span>. '
         f'New York closed <span class="mono {chg_cls(act)}">{act:+.1f} pts</span>. '
-        f'{stamp}</p>'
+        f'{stamp}{ev_chips}</p>'
         f'<div class="l10 mono">'
         + "".join(f'<b class="{"up" if h else "dn"}">{"&check;" if h else "&cross;"}</b>'
                   for h in r["last10"])
@@ -857,6 +883,7 @@ h1.verdict{font-family:"Bahnschrift SemiBold Condensed","Bahnschrift","Arial Nar
 .dek .mono{font-size:14.5px}
 .tags{margin-top:16px;display:flex;gap:12px;font-size:11px;letter-spacing:.08em}
 .tag.warn{color:#ffb454}
+.dek.flownote{margin-top:10px;font-size:13.5px;color:#ffb454;max-width:62ch}
 .bigstat{text-align:right;padding-bottom:4px}
 .bignum{font-family:"Bahnschrift SemiBold Condensed","Bahnschrift","Arial Narrow",sans-serif;
   font-size:150px;line-height:.82;color:#ffb454;display:block}

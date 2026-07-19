@@ -124,9 +124,23 @@ def get_econ_calendar() -> list:
                 "forecast": e.get("forecast", "") or "-",
                 "previous": e.get("previous", "") or "-",
             })
-        return sorted(events, key=lambda x: x["time"])
+        return sorted(events, key=lambda x: x["time"]) + _structural_events()
     except Exception as e:
-        return [{"error": str(e)}]
+        return [{"error": str(e)}] + _structural_events()
+
+
+def _structural_events() -> list:
+    """Expiry-flow days the econ-calendar feed doesn't carry (OPEX, VIX
+    expiration, quad witching) — appended so no one has to remember them.
+    CPI/FOMC are NOT added here: the feed already lists them with forecasts."""
+    try:
+        from data.market_events import events_for
+        return [{"time": "ALL DAY", "title": e["label"] + " — " + e["note"],
+                 "impact": "High", "forecast": "-", "previous": "-"}
+                for e in events_for(date.today())
+                if e["kind"] in ("opex", "quad_witching", "vix_exp")]
+    except Exception:
+        return []
 
 
 # -- News headlines ------------------------------------------------------------
