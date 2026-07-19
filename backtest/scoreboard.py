@@ -43,6 +43,12 @@ MIN_TOUCHES = 20  # pooled prior touches needed before the fakeout claim counts
 
 SWEEPS = ("asia_high", "asia_low", "none", "both")
 
+# The fakeout claim is graded on the four SESSION levels only — the levels
+# the page was claiming about when each touch happened. Stop-cluster levels
+# (prior-day/prev-week, added 2026-07-19) get their own record once they
+# have a claim history, not retroactive membership in this one.
+CLAIM_LEVELS = ("asia_high", "asia_low", "london_high", "london_low")
+
 
 def _pct(n: int, d: int) -> float | None:
     return round(100.0 * n / d, 1) if d else None
@@ -93,7 +99,8 @@ def compute_scoreboard(dataset: dict) -> dict:
         row = _grade_day(s, sessions[:i])
 
         # grade the headline fakeout claim on days it was actually claimable
-        todays = [e for e in (s.get("first_touch") or {}).values() if e]
+        ft = s.get("first_touch") or {}
+        todays = [ft[k] for k in CLAIM_LEVELS if ft.get(k)]
         if prior_touches >= MIN_TOUCHES and todays:
             claim = 100.0 * prior_fakeouts / prior_touches
             fakes = sum(1 for e in todays if e["kind"] == "fakeout")

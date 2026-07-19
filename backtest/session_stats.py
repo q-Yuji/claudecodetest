@@ -20,7 +20,16 @@ Definitions (v1 — 5m bars, all times ET):
     extreme (range containment test, matching the AMD framing used in
     amd_session_review.py).
 
-  First-touch classification (per level: Asia H/L, London H/L)
+  Tracked levels (v1 fields; stop-cluster levels added 2026-07-19)
+    Session levels : Asia H/L, London H/L (as above)
+    Prior day H/L  : high/low of ALL 5m bars on the prior trading date
+                     (ET calendar date — includes overnight, ≈ the daily
+                     candle retail traders mark as PDH/PDL)
+    Prev week H/L  : max/min of those daily ranges over the prior ISO week
+    Each session record also stores its own day_high/day_low so future
+    sessions can derive these levels from the dataset alone.
+
+  First-touch classification (per tracked level)
     The first NY 5m bar whose range breaches the level starts an episode.
     If that bar or either of the next 2 bars CLOSES back on the original
     side, the episode is a FAKEOUT (FBO) confirmed at that reclaim close;
@@ -77,6 +86,13 @@ TIME_BUCKETS = [
     ("11:00-13:00", time(11, 0), time(13, 0)),
     ("13:00-16:00", time(13, 0), time(16, 0)),
 ]
+
+# (level_name, side) for every tracked level, session levels first
+SESSION_LEVELS = [("asia_high", "high"), ("asia_low", "low"),
+                  ("london_high", "high"), ("london_low", "low")]
+CLUSTER_LEVELS = [("prior_day_high", "high"), ("prior_day_low", "low"),
+                  ("prev_week_high", "high"), ("prev_week_low", "low")]
+ALL_LEVELS = SESSION_LEVELS + CLUSTER_LEVELS
 
 
 NQ_FRONT_CONID = 770561204  # Sep 2026 — update at quarterly roll
@@ -146,6 +162,34 @@ def _session_hl(df: pd.DataFrame, day: date) -> dict:
     out["asia_low"] = round(float(asia["low"].min()), 2) if len(asia) >= 2 else None
     out["london_high"] = round(float(london["high"].max()), 2) if len(london) >= 2 else None
     out["london_low"] = round(float(london["low"].min()), 2) if len(london) >= 2 else None
+    return out
+
+
+def _day_range(df: pd.DataFrame, d: date) -> tuple[float, float] | None:
+    """Full ET-calendar-date high/low from 5m bars (≈ the daily candle)."""
+    bars = df[[ts.date() == d for ts in df.index]]
+    if len(bars) < 12:
+        return None
+    return round(float(bars["high"].max()), 2), round(float(bars["low"].min()), 2)
+
+
+def _extended_levels(df: pd.DataFrame, day: date) -> dict:
+    """Prior-day and previous-ISO-week H/L for a session date (None when
+    the bars aren't in the window — absent levels are skipped, not guessed)."""
+    out = {"prior_day_high": None, "prior_day_low": None,
+           "prev_week_high": None, "prev_week_low": None}
+    dates = sorted({ts.date() for ts in df.index
+                    if ts.weekday() < 5 and ts.date() < day})
+    prior = [d for d in dates if _day_range(df, d)]
+    if prior:
+        pd_range = _day_range(df, prior[-1])
+        out["prior_day_high"], out["prior_day_low"] = pd_range
+    wk = (day - timedelta(days=7)).isocalendar()[:2]
+    week_ranges = [r for d in dates
+                   if d.isocalendar()[:2] == wk and (r := _day_range(df, d))]
+    if week_ranges:
+        out["prev_week_high"] = max(r[0] for r in week_ranges)
+        out["prev_week_low"] = min(r[1] for r in week_ranges)
     return out
 
 
@@ -252,14 +296,15 @@ def analyse_session(df: pd.DataFrame, day: date) -> dict | None:
     elif swept_low:
         london_sweep = "asia_low"
 
+    ext = _extended_levels(df, day)
+    own_range = _day_range(df, day)
+
     touches = {}
-    for name, level, side in [
-        ("asia_high", hl["asia_high"], "high"),
-        ("asia_low", hl["asia_low"], "low"),
-        ("london_high", hl["london_high"], "high"),
-        ("london_low", hl["london_low"], "low"),
-    ]:
-        touches[name] = _first_touch(ny, level, side)
+    levels = {**hl, **ext}
+    for name, side in ALL_LEVELS:
+        if levels.get(name) is None:
+            continue
+        touches[name] = _first_touch(ny, levels[name], side)
 
     ny_open = float(ny.iloc[0]["open"])
     ny_close = float(ny.iloc[-1]["close"])
@@ -269,6 +314,9 @@ def analyse_session(df: pd.DataFrame, day: date) -> dict | None:
         "date": day.isoformat(),
         "weekday": day.strftime("%a"),
         **hl,
+        **{k: v for k, v in ext.items() if v is not None},
+        **({"day_high": own_range[0], "day_low": own_range[1]}
+           if own_range else {}),
         "london_sweep": london_sweep,
         "ny_open": round(ny_open, 2),
         "ny_high": round(float(ny["high"].max()), 2),
@@ -302,14 +350,46 @@ def _es_touch_times(es: pd.DataFrame) -> dict[str, dict[str, str]]:
         hl = _session_hl(es, day)
         if hl["asia_high"] is None or hl["london_high"] is None:
             continue
+        levels = {**hl, **_extended_levels(es, day)}
         times = {}
-        for name, side in (("asia_high", "high"), ("asia_low", "low"),
-                           ("london_high", "high"), ("london_low", "low")):
-            ep = _first_touch(ny, hl[name], side)
+        for name, side in ALL_LEVELS:
+            if levels.get(name) is None:
+                continue
+            ep = _first_touch(ny, levels[name], side)
             if ep:
                 times[name] = ep["time"]
         out[day.isoformat()] = times
     return out
+
+
+def _backfill_levels(ds: dict, df: pd.DataFrame) -> int:
+    """Add day ranges + stop-cluster levels (and their first-touch episodes)
+    to existing records where the 5m bars are still in the window. Records
+    older than the window keep those fields absent — never guessed."""
+    changed = 0
+    window_dates = {ts.date() for ts in df.index}
+    for key, rec in ds["sessions"].items():
+        day = date.fromisoformat(key)
+        if day not in window_dates:
+            continue
+        touched = False
+        if "day_high" not in rec and (rng := _day_range(df, day)):
+            rec["day_high"], rec["day_low"] = rng
+            touched = True
+        if "prior_day_high" not in rec:
+            ext = _extended_levels(df, day)
+            defined = {k: v for k, v in ext.items() if v is not None}
+            if defined:
+                rec.update(defined)
+                ny = _window(df, datetime.combine(day, NY_START, tzinfo=ET),
+                             datetime.combine(day, NY_END, tzinfo=ET))
+                for name, side in CLUSTER_LEVELS:
+                    if name in defined and name not in rec["first_touch"]:
+                        rec["first_touch"][name] = _first_touch(
+                            ny, defined[name], side)
+                touched = True
+        changed += touched
+    return changed
 
 
 def _mins(hhmm: str) -> int:
@@ -363,11 +443,12 @@ def aggregate(sessions: list[dict]) -> dict:
             "median_ny_change_pts": _median([s["ny_change_pts"] for s in subset]),
         }
 
-    # 2) First-touch outcomes per level
+    # 2) First-touch outcomes per level (denominator = sessions where the
+    #    level was defined — cluster levels are absent on the oldest records)
     levels = {}
-    for lvl in ("asia_high", "asia_low", "london_high", "london_low"):
+    for lvl, _side in ALL_LEVELS:
         eps = [s["first_touch"][lvl] for s in sessions if s["first_touch"].get(lvl)]
-        n_days = len(sessions)
+        n_days = sum(1 for s in sessions if lvl in s["first_touch"])
         fakes = [e for e in eps if e["kind"] == "fakeout"]
         breaks = [e for e in eps if e["kind"] == "break"]
         levels[lvl] = {
@@ -470,6 +551,29 @@ def aggregate(sessions: list[dict]) -> dict:
     }
 
 
+def _latest_levels(ds: dict) -> dict:
+    """Tomorrow-facing stop-cluster levels derived from the dataset alone:
+    PDH/PDL = last session's day range; PWH/PWL = the ISO week before the
+    NEXT session's week (so a weekend render serves Monday correctly)."""
+    recs = [r for r in ds["sessions"].values() if "day_high" in r]
+    if not recs:
+        return {}
+    recs.sort(key=lambda r: r["date"])
+    last = recs[-1]
+    next_day = date.fromisoformat(last["date"]) + timedelta(days=1)
+    while next_day.weekday() >= 5:
+        next_day += timedelta(days=1)
+    target_wk = (next_day - timedelta(days=7)).isocalendar()[:2]
+    week = [r for r in recs
+            if date.fromisoformat(r["date"]).isocalendar()[:2] == target_wk]
+    out = {"as_of": last["date"], "for_session": next_day.isoformat(),
+           "prior_day_high": last["day_high"], "prior_day_low": last["day_low"]}
+    if week:
+        out["prev_week_high"] = max(r["day_high"] for r in week)
+        out["prev_week_low"] = min(r["day_low"] for r in week)
+    return out
+
+
 # ── Persistence + main ─────────────────────────────────────────────────────────
 
 def load_dataset() -> dict:
@@ -519,6 +623,10 @@ def main():
             ds["sessions"][key] = rec
             added += 1
 
+    lvl_backfilled = _backfill_levels(ds, df)
+    if lvl_backfilled:
+        print(f"  Backfilled stop-cluster levels on {lvl_backfilled} sessions")
+
     # cross-market + regime tags (new sessions AND untagged history; sessions
     # older than the ES 5m window just keep their es_confirmed fields absent)
     print("  Downloading ES 5m + NQ daily for cross-market/regime tags...")
@@ -550,6 +658,7 @@ def main():
     summary = aggregate(list(ds["sessions"].values()))
     if current_regime:
         summary["latest_regime"] = current_regime
+    summary["latest_levels"] = _latest_levels(ds)
     RESULTS_DIR.mkdir(exist_ok=True)
     out = RESULTS_DIR / "session_stats_summary.json"
     out.write_text(json.dumps(summary, indent=2, ensure_ascii=False), encoding="utf-8")
