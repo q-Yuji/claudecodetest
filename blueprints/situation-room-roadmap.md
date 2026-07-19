@@ -152,6 +152,11 @@ spreadsheet-copyable with weak willingness-to-pay; its product future, if
 any, is a FREE shareable "prop ROI card" as distribution for SweepStats
 (the survival math above is what makes it non-generic). Personal
 dogfooding first; the panel never ships on the public page (account P&L).
+Design constraint (user, 2026-07-19): prop firms run heavy, constantly
+varying discount promos — the user's own fills were $99 Tradeify / $76.50
+MFFU, both discounted. Any product version must record the ACTUAL paid
+price per purchase, never assume list pricing (list-price assumptions
+would overstate everyone's spend and wreck the ROI math's credibility).
 
 ### 7. Regime slicing (needs bigger n)
 Fakeout % conditioned on gamma regime / VIX band / day-of-week.

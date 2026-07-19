@@ -8,12 +8,12 @@
       "label": "$50k eval #1",
       "account_no": null,
       "type": "eval",
-      "cost_usd": null,
+      "cost_usd": 99.0,
       "bought": null,
       "outcome": "passed",
       "outcome_date": "2026-07-07",
       "payouts": [],
-      "notes": "Active by 2026-06-24 (first journal); purchase date and fee not recorded. Passed 2026-07-07 (~$53,360 final), funded account issued same day."
+      "notes": "Active by 2026-06-24 (first journal); purchase date and fee not recorded. Passed 2026-07-07 (~$53,360 final), funded account issued same day. Paid $99 (discounted)."
     },
     {
       "id": "tradeify-funded-1",
@@ -21,12 +21,12 @@
       "label": "$50k funded (sim)",
       "account_no": null,
       "type": "funded",
-      "cost_usd": null,
+      "cost_usd": 0.0,
       "bought": "2026-07-07",
       "outcome": "blown",
       "outcome_date": null,
       "payouts": [],
-      "notes": "Issued on eval #1 pass; +$3,244.24 day one. Blown between 2026-07-13 and 2026-07-16 (journals for that stretch outstanding — exact date and any activation fee unrecorded). No payout was ever taken."
+      "notes": "Issued on eval #1 pass; +$3,244.24 day one. Blown between 2026-07-13 and 2026-07-16 (journals for that stretch outstanding — exact date and any activation fee unrecorded). No payout was ever taken. No separate purchase - issued on eval pass; if an activation fee existed it is unrecorded (update if so)."
     },
     {
       "id": "tradeify-eval-2",
@@ -34,12 +34,12 @@
       "label": "$50k eval #2 (1/2)",
       "account_no": "TDFYSL50249764498",
       "type": "eval",
-      "cost_usd": null,
+      "cost_usd": 99.0,
       "bought": "2026-07-14",
       "outcome": "blown",
       "outcome_date": "2026-07-16",
       "payouts": [],
-      "notes": "Bought as a pair on CPI day; +~$1k day one; blown 2026-07-16."
+      "notes": "Bought as a pair on CPI day; +~$1k day one; blown 2026-07-16. Paid $99 (discounted)."
     },
     {
       "id": "tradeify-eval-3",
@@ -47,12 +47,12 @@
       "label": "$50k eval #3 (2/2)",
       "account_no": "TDFYSL50405790488",
       "type": "eval",
-      "cost_usd": null,
+      "cost_usd": 99.0,
       "bought": "2026-07-14",
       "outcome": "blown",
       "outcome_date": "2026-07-16",
       "payouts": [],
-      "notes": "Second of the CPI-day pair; +$906.20 on 07-15; blown 2026-07-16."
+      "notes": "Second of the CPI-day pair; +$906.20 on 07-15; blown 2026-07-16. Paid $99 (discounted)."
     },
     {
       "id": "tradeify-eval-4",
@@ -60,12 +60,12 @@
       "label": "$50k eval #4",
       "account_no": null,
       "type": "eval",
-      "cost_usd": null,
+      "cost_usd": 99.0,
       "bought": "2026-07-16",
       "outcome": "blown",
       "outcome_date": "2026-07-17",
       "payouts": [],
-      "notes": "Instant re-buy the morning both CPI-day evals blew; itself blown next day — the last Tradeify account."
+      "notes": "Instant re-buy the morning both CPI-day evals blew; itself blown next day — the last Tradeify account. Paid $99 (discounted)."
     },
     {
       "id": "mffu-builder-1",
@@ -73,12 +73,12 @@
       "label": "$50k Builder #1",
       "account_no": "MFFUEVBLDR401004033",
       "type": "eval",
-      "cost_usd": null,
+      "cost_usd": 76.5,
       "bought": "2026-07-16",
       "outcome": "passed",
       "outcome_date": "2026-07-17",
       "payouts": [],
-      "notes": "Balance $53,272.24 hit 2026-07-17 = target reached; pass pending MFFU EOD sync, funded phase to follow. No payouts possible until funded."
+      "notes": "Balance $53,272.24 hit 2026-07-17 = target reached; pass pending MFFU EOD sync, funded phase to follow. No payouts possible until funded. Paid $76.50 (discounted)."
     },
     {
       "id": "mffu-builder-2",
@@ -86,12 +86,13 @@
       "label": "$50k Builder #2",
       "account_no": null,
       "type": "eval",
-      "cost_usd": null,
+      "cost_usd": 76.5,
       "bought": "2026-07-16",
       "outcome": "active",
       "outcome_date": null,
       "payouts": [],
-      "notes": "Second Builder of the pair; untracked so far (no trades logged against it)."
+      "notes": "Second Builder of the pair; untracked so far (no trades logged against it). Paid $76.50 (discounted)."
     }
-  ]
+  ],
+  "pricing_note": "All costs are the ACTUAL price paid, not list price. These were discounted promos (user, 2026-07-19) - prop firms run heavy, varying discounts constantly, so any future product must record real paid amounts per purchase, never assume list pricing."
 }
