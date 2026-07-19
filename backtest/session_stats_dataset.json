@@ -651,7 +651,14 @@
    "prior_day_high": 29386.75,
    "prior_day_low": 28758.25,
    "prev_week_high": 29386.75,
-   "prev_week_low": 28541.0
+   "prev_week_low": 28541.0,
+   "weekend_gap": {
+    "fri_close": 29332.5,
+    "sun_open": 29281.75,
+    "gap_pts": -50.75,
+    "filled_pre_ny": true,
+    "ny_episode": null
+   }
   },
   "2026-05-12": {
    "v": 1,
@@ -1175,7 +1182,14 @@
    "prior_day_high": 29555.0,
    "prior_day_low": 29089.75,
    "prev_week_high": 29782.0,
-   "prev_week_low": 28742.0
+   "prev_week_low": 28742.0,
+   "weekend_gap": {
+    "fri_close": 29231.75,
+    "sun_open": 29270.25,
+    "gap_pts": 38.5,
+    "filled_pre_ny": true,
+    "ny_episode": null
+   }
   },
   "2026-05-19": {
    "v": 1,
@@ -1925,7 +1939,14 @@
    "prior_day_high": 30536.0,
    "prior_day_low": 30265.75,
    "prev_week_high": 30536.0,
-   "prev_week_low": 29744.0
+   "prev_week_low": 29744.0,
+   "weekend_gap": {
+    "fri_close": 30405.25,
+    "sun_open": 30379.25,
+    "gap_pts": -26.0,
+    "filled_pre_ny": true,
+    "ny_episode": null
+   }
   },
   "2026-06-02": {
    "v": 1,
@@ -2417,7 +2438,14 @@
    "prior_day_high": 30259.0,
    "prior_day_low": 28781.25,
    "prev_week_high": 30807.75,
-   "prev_week_low": 28781.25
+   "prev_week_low": 28781.25,
+   "weekend_gap": {
+    "fri_close": 29026.5,
+    "sun_open": 28898.5,
+    "gap_pts": -128.0,
+    "filled_pre_ny": true,
+    "ny_episode": null
+   }
   },
   "2026-06-09": {
    "v": 1,
@@ -2953,7 +2981,14 @@
    "prior_day_high": 29760.0,
    "prior_day_low": 29230.0,
    "prev_week_high": 29848.25,
-   "prev_week_low": 28227.75
+   "prev_week_low": 28227.75,
+   "weekend_gap": {
+    "fri_close": 29662.0,
+    "sun_open": 30074.0,
+    "gap_pts": 412.0,
+    "filled_pre_ny": false,
+    "ny_episode": null
+   }
   },
   "2026-06-16": {
    "v": 1,
@@ -3822,7 +3857,14 @@
    "prior_day_high": 29716.0,
    "prior_day_low": 29181.5,
    "prev_week_high": 30968.0,
-   "prev_week_low": 29160.5
+   "prev_week_low": 29160.5,
+   "weekend_gap": {
+    "fri_close": 29368.25,
+    "sun_open": 29504.5,
+    "gap_pts": 136.25,
+    "filled_pre_ny": true,
+    "ny_episode": null
+   }
   },
   "2026-06-30": {
    "v": 1,
@@ -4567,7 +4609,14 @@
    "prior_day_high": 30077.75,
    "prior_day_low": 29675.0,
    "prev_week_high": 30094.0,
-   "prev_week_low": 28909.75
+   "prev_week_low": 28909.75,
+   "weekend_gap": {
+    "fri_close": 30032.25,
+    "sun_open": 29894.25,
+    "gap_pts": -138.0,
+    "filled_pre_ny": true,
+    "ny_episode": null
+   }
   },
   "2026-07-14": {
    "v": 1,

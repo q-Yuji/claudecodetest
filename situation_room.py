@@ -631,7 +631,41 @@ def _first_touch_pane(summary: dict) -> str:
             f'<td class="mono dn">{float(st.get("fakeout_median_mae120_pts") or 0):.0f} pts</td></tr>')
     return ('<table class="sheet"><thead><tr><th>LEVEL</th><th></th>'
             "<th>FAKEOUT</th><th>TOUCHES</th><th>MED. REVERSAL 60M</th>"
-            f"<th>STOP-RUN RISK</th></tr></thead><tbody>{rows}</tbody></table>")
+            f"<th>STOP-RUN RISK</th></tr></thead><tbody>{rows}</tbody></table>"
+            + _weekend_gap_block(summary))
+
+
+def _weekend_gap_block(summary: dict) -> str:
+    """Weekend-gap fill mechanics (Fri 17:00 close → Sun 18:00 open).
+    Price-derived — renders in both editions. Holiday weekends are
+    skipped by the engine, never guessed."""
+    wg = summary.get("weekend_gap") or {}
+    n = int(wg.get("weekends") or 0)
+    if not n:
+        return ""
+    low_n = ' <span class="lown">low sample</span>' if n < 10 else ""
+    rows = (
+        f'<tr><td class="mono lvl">GAP FILLS OVERNIGHT — BEFORE NY EVEN OPENS</td>'
+        f'<td class="mono amber">{float(wg.get("filled_pre_ny_pct") or 0):.0f}%</td>'
+        f'<td class="mono">{int(wg.get("filled_pre_ny") or 0)}/{n} weekends</td></tr>'
+        f'<tr><td class="mono lvl">MEDIAN GAP SIZE</td>'
+        f'<td class="mono">{float(wg.get("median_abs_gap_pts") or 0):.0f} pts</td>'
+        f'<td class="mono">gap up {float(wg.get("gap_up_pct") or 0):.0f}% of weekends</td></tr>')
+    if int(wg.get("ny_fill_touches") or 0):
+        rows += (
+            f'<tr><td class="mono lvl">MONDAY NY TAGS THE FILL — AND REJECTS</td>'
+            f'<td class="mono amber">{float(wg.get("ny_reject_pct") or 0):.0f}%</td>'
+            f'<td class="mono up">+{float(wg.get("ny_reject_median_mfe60_pts") or 0):.0f} pts/60m '
+            f'after reject</td></tr>')
+    rows += (
+        f'<tr><td class="mono lvl">STILL OPEN AFTER MONDAY</td>'
+        f'<td class="mono">{float(wg.get("open_through_monday_pct") or 0):.0f}%</td>'
+        f'<td class="mono">{int(wg.get("open_through_monday") or 0)}/{n} weekends</td></tr>')
+    return (
+        f'<div class="colhead mono" style="margin-top:22px">WEEKEND GAP — '
+        f'FRI 17:00 CLOSE → SUN 18:00 OPEN · n={n} WEEKENDS{low_n}</div>'
+        f'<table class="sheet"><thead><tr><th>MEASURE</th><th>RATE</th>'
+        f'<th>DETAIL</th></tr></thead><tbody>{rows}</tbody></table>')
 
 
 def _matrix_pane(summary: dict) -> str:

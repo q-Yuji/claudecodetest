@@ -193,6 +193,66 @@ def _extended_levels(df: pd.DataFrame, day: date) -> dict:
     return out
 
 
+def _weekend_gap(df: pd.DataFrame, monday: date) -> dict | None:
+    """Weekend gap for a Monday session (v1 pinned definition):
+
+    gap = (first 5m bar open at/after Sunday 18:00 ET)
+        − (last Friday 5m bar close at/before 17:00 ET).
+    Fill target = the Friday close. filled_pre_ny = price traded back
+    through it during the overnight (Sun 18:00 → Mon 09:30). Otherwise
+    Monday NY's first touch of the fill level is classified with the
+    standard _first_touch machinery: fakeout = fill-and-reject,
+    break = fill-and-continue. Missing Friday/Sunday bars → None.
+    """
+    friday = monday - timedelta(days=3)
+    fri_bars = df[[ts.date() == friday and ts.time() < time(17, 0)
+                   for ts in df.index]]
+    sun_bars = _window(df,
+                       datetime.combine(monday - timedelta(days=1),
+                                        ASIA_START, tzinfo=ET),
+                       datetime.combine(monday, NY_START, tzinfo=ET))
+    if fri_bars.empty or sun_bars.empty:
+        return None
+    fri_close = round(float(fri_bars.iloc[-1]["close"]), 2)
+    sun_open = round(float(sun_bars.iloc[0]["open"]), 2)
+    gap = round(sun_open - fri_close, 2)
+
+    if gap >= 0:  # gap up: fill target is below — a floor
+        filled_pre_ny = bool((sun_bars["low"] <= fri_close).any())
+        side = "low"
+    else:
+        filled_pre_ny = bool((sun_bars["high"] >= fri_close).any())
+        side = "high"
+
+    episode = None
+    if not filled_pre_ny:
+        ny = _window(df, datetime.combine(monday, NY_START, tzinfo=ET),
+                     datetime.combine(monday, NY_END, tzinfo=ET))
+        if len(ny) >= 30:
+            episode = _first_touch(ny, fri_close, side)
+
+    return {"fri_close": fri_close, "sun_open": sun_open, "gap_pts": gap,
+            "filled_pre_ny": filled_pre_ny, "ny_episode": episode}
+
+
+def _stamp_weekend_gaps(ds: dict, df: pd.DataFrame) -> int:
+    """Stamp weekend_gap on Monday records whose bars are still in the
+    window (new sessions and backfill alike — one code path). Records
+    older than the window keep the field absent, never guessed."""
+    changed = 0
+    window_dates = {ts.date() for ts in df.index}
+    for key, rec in ds["sessions"].items():
+        day = date.fromisoformat(key)
+        if (day.weekday() != 0 or "weekend_gap" in rec
+                or day not in window_dates):
+            continue
+        wg = _weekend_gap(df, day)
+        if wg is not None:
+            rec["weekend_gap"] = wg
+            changed += 1
+    return changed
+
+
 def _bucket(ts: pd.Timestamp) -> str:
     t = ts.time()
     for name, lo, hi in TIME_BUCKETS:
@@ -549,6 +609,29 @@ def aggregate(sessions: list[dict]) -> dict:
             "fakeout_median_mfe60_pts": _median([e["mfe_60"] for e in fakes]),
         }
 
+    # 7) Weekend gap (Fri 17:00 close → Sun 18:00 open) — fill mechanics.
+    #    Kept out of the first_touch pools so historical stats don't shift.
+    gaps = [s["weekend_gap"] for s in sessions if s.get("weekend_gap")]
+    eps = [g["ny_episode"] for g in gaps if g.get("ny_episode")]
+    rejects = [e for e in eps if e["kind"] == "fakeout"]
+    unfilled_at_ny = [g for g in gaps if not g["filled_pre_ny"]]
+    weekend_gap = {
+        "weekends": len(gaps),
+        "gap_up_pct": _pct(sum(1 for g in gaps if g["gap_pts"] >= 0), len(gaps)),
+        "median_abs_gap_pts": _median([abs(g["gap_pts"]) for g in gaps]),
+        "filled_pre_ny": len(gaps) - len(unfilled_at_ny),
+        "filled_pre_ny_pct": _pct(len(gaps) - len(unfilled_at_ny), len(gaps)),
+        "unfilled_at_ny": len(unfilled_at_ny),
+        "ny_fill_touches": len(eps),
+        "ny_reject_pct": _pct(len(rejects), len(eps)),
+        "ny_reject_median_mfe60_pts": _median([e["mfe_60"] for e in rejects]),
+        "ny_reject_median_overshoot_pts": _median(
+            [e["overshoot_pts"] for e in rejects]),
+        "open_through_monday": len(unfilled_at_ny) - len(eps),
+        "open_through_monday_pct": _pct(len(unfilled_at_ny) - len(eps),
+                                        len(gaps)),
+    }
+
     dates = sorted(s["date"] for s in sessions)
     return {
         "generated": datetime.now(ET).isoformat(timespec="seconds"),
@@ -563,6 +646,7 @@ def aggregate(sessions: list[dict]) -> dict:
         "event_days": events,
         "cross_market": cross,
         "regime": regimes,
+        "weekend_gap": weekend_gap,
     }
 
 
@@ -641,6 +725,10 @@ def main():
     lvl_backfilled = _backfill_levels(ds, df)
     if lvl_backfilled:
         print(f"  Backfilled stop-cluster levels on {lvl_backfilled} sessions")
+
+    gap_stamped = _stamp_weekend_gaps(ds, df)
+    if gap_stamped:
+        print(f"  Stamped weekend gaps on {gap_stamped} Monday sessions")
 
     # cross-market + regime tags (new sessions AND untagged history; sessions
     # older than the ES 5m window just keep their es_confirmed fields absent)
@@ -721,6 +809,16 @@ def main():
             print(f"    {k:<10} n={v['days']:>3}  NY up {v['ny_up_pct']}%  "
                   f"touches={v['touches']:>3}  fakeout {v['fakeout_pct']}%  "
                   f"reversal 60m {v['fakeout_median_mfe60_pts']}pts")
+    wg = summary["weekend_gap"]
+    if wg["weekends"]:
+        print(f"\n  Weekend gap (Fri 17:00 close -> Sun 18:00 open), "
+              f"n={wg['weekends']} weekends:")
+        print(f"    gap up {wg['gap_up_pct']}%  median size {wg['median_abs_gap_pts']}pts  "
+              f"filled overnight {wg['filled_pre_ny_pct']}%")
+        print(f"    Monday NY fill touches={wg['ny_fill_touches']}  "
+              f"fill-and-reject {wg['ny_reject_pct']}%  "
+              f"reject bounce 60m {wg['ny_reject_median_mfe60_pts']}pts  "
+              f"still open after Monday {wg['open_through_monday_pct']}%")
     print()
 
 

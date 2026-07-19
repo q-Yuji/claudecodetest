@@ -144,6 +144,17 @@ lot**. "Given your remaining drawdown, max size for this setup's
 historical adverse excursion" is a 20-line calculation with real teeth.
 Seed logic exists in `data/tradeify_account.py`.
 
+**BUILT 2026-07-20 as "The Floor" (personal edition §05):**
+`session_stats.py` now publishes p75/p90 MAE percentiles per level
+(sizing must survive the tail, not the median — half of trades run past
+the median), and `situation_room.py::build_floor` fuses them with a
+read-only projection of the guardrail state (never mutates
+`tradeify_state.json` from a render) into max-NQ/MNQ contracts per
+setup. First output at n=55: a FULL $2,000 MFFU Builder buffer affords
+**zero** setups a single NQ contract at p90 adverse excursion — honest
+size is 3–8 micros depending on the level. That table IS USP #3 in
+rendered form. Verified absent from the public edition.
+
 **Adjacent, BUILT 2026-07-19 (user request): The Ledger** — eval-spend vs
 payout tracking as a personal-edition Situation Room panel
 (`data/prop_ledger.json`), not a standalone product. Decision context:
@@ -225,6 +236,21 @@ confluences, never main bias.
   before displacement), exhaustion-candle reversal odds (definition
   needs pinning). Dogfooding question it answers: do HIS confluences
   measurably add edge on NQ?
+
+  **Queue item 1 BUILT 2026-07-20 as "weekend gap"** (neutral-quant
+  name per the veto): pinned v1 definition in
+  `backtest/session_stats.py::_weekend_gap` — gap = Sun 18:00 ET open
+  − Fri last 5m close ≤17:00 ET; fill target = Fri close; overnight
+  fill vs Monday-NY first-touch classification reusing `_first_touch`
+  (fill-and-reject = fakeout / fill-and-continue = break, with the
+  full overshoot/MFE/MAE treatment). Stored under its own
+  `weekend_gap` key on Monday records — never pooled into
+  `first_touch`, so published historical stats don't shift. First
+  finding (n=7 weekends): **86% of gaps filled during the overnight
+  session before NY opened**; zero Monday-NY fill touches in sample —
+  on NQ the gap is mostly an *overnight* phenomenon, which is itself
+  myth-buster content against "trade the NWOG fill in the morning".
+  Vendor data gives this the n≈50 treatment.
 - Marketing may still TEST popular ICT claims as myth-buster content
   (engagement without endorsement) — the brand never adopts the dialect.
 
