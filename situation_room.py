@@ -303,7 +303,7 @@ def build_hero(gex: dict | None, summary: dict | None) -> str:
         f'<div class="kicker mono">{kicker} · OVERNIGHT PATTERN</div>'
         f'<h1 class="verdict">{esc(_PATTERN_TITLES[key])}</h1>'
         f'<p class="dek">On the {days} prior days with this pattern, New York closed '
-        f'<span class="{"up" if up_pct >= 50 else "dn"}">up {up_pct:.0f}% of the time</span> '
+        f'<span class="{chg_cls(up_pct - 50)}">up {up_pct:.0f}% of the time</span> '
         f'with a median session move of <span class="mono {chg_cls(med)}">{med:+.1f} pts</span>.{low_n}</p>'
         f'{flow_note}'
         f'<div class="tags mono">{chips}</div>')
@@ -681,7 +681,7 @@ def _matrix_pane(summary: dict) -> str:
         rows += (
             f'<tr><td class="mono lvl">{title}{low_n}</td>'
             f'<td class="mono">{days}</td>'
-            f'<td class="mono {"up" if up >= 50 else "dn"}">{up:.0f}%</td>'
+            f'<td class="mono {chg_cls(up - 50)}">{up:.0f}%</td>'
             f'<td class="mono {chg_cls(med)}">{med:+.1f} pts</td></tr>')
     return ('<table class="sheet"><thead><tr><th>OVERNIGHT PATTERN</th>'
             "<th>DAYS</th><th>NY CLOSED UP</th><th>MEDIAN NY MOVE</th>"
@@ -1167,7 +1167,8 @@ h1.verdict{font-family:"Bahnschrift SemiBold Condensed","Bahnschrift","Arial Nar
   text-wrap:balance;margin:0 0 16px}
 .dek{font-size:16px;line-height:1.6;color:#8b9aa8;max-width:56ch}
 .dek .mono{font-size:14.5px}
-.tags{margin-top:16px;display:flex;gap:12px;font-size:11px;letter-spacing:.08em}
+.tags{margin-top:16px;display:flex;flex-wrap:wrap;gap:8px 12px;font-size:11px;
+  letter-spacing:.08em}
 .tag.warn{color:#ffb454}
 .dek.flownote{margin-top:10px;font-size:13.5px;color:#ffb454;max-width:62ch}
 .bigstat{text-align:right;padding-bottom:4px}
@@ -1388,8 +1389,12 @@ if(wm){var wmOrig=wm.textContent;
     var p=wm.closest('.secbody');p.classList.toggle('wire-open');
     wm.textContent=p.classList.contains('wire-open')?'SHOW LESS \\u2013':wmOrig;
   });}
-/* screenshot mode */
-if(location.hash==='#png')document.body.classList.add('expand-all');
+/* screenshot mode; the title carries the laid-out page height so the
+   PNG renderer can size the window exactly (read via --dump-dom) */
+if(location.hash==='#png'){
+  document.body.classList.add('expand-all');
+  document.title='pngh='+Math.ceil(document.documentElement.scrollHeight);
+}
 """
 
 
@@ -1467,20 +1472,42 @@ def _find_chrome() -> Path | None:
     return None
 
 
-def render_png(html_path: Path, png_path: Path, height: int) -> bool:
+def _measure_height(chrome: Path, uri: str) -> int | None:
+    """First headless pass: the page's #png script writes its laid-out
+    scrollHeight into <title>, which --dump-dom serializes back out."""
+    try:
+        out = subprocess.run(
+            [str(chrome), "--headless=new", "--disable-gpu", "--dump-dom",
+             "--window-size=1440,1000", uri],
+            check=True, capture_output=True, timeout=120)
+        m = re.search(rb"<title>pngh=(\d+)</title>", out.stdout)
+        return int(m.group(1)) if m else None
+    except (subprocess.SubprocessError, ValueError):
+        return None
+
+
+def render_png(html_path: Path, png_path: Path, fallback_height: int) -> bool:
     """Render with a fresh headless Chrome — never the port-9222 trading one.
 
     Appends #png so the page opens in expand-all mode (tabs stacked, wire
-    fully shown, ticker frozen) for the shareable screenshot.
+    fully shown, ticker frozen). The window height is measured from the
+    page itself so panels can grow without cropping the screenshot; the
+    fallback constant only applies if measurement fails.
     """
     chrome = _find_chrome()
     if chrome is None:
         print("  WARNING: chrome.exe not found — skipping PNG render")
         return False
+    uri = html_path.resolve().as_uri() + "#png"
+    height = _measure_height(chrome, uri)
+    if height is None:
+        print(f"  WARNING: page height measurement failed — "
+              f"using {fallback_height}px")
+        height = fallback_height
     subprocess.run(
         [str(chrome), "--headless=new", "--disable-gpu", "--hide-scrollbars",
-         f"--screenshot={png_path.resolve()}", f"--window-size=1440,{height}",
-         html_path.resolve().as_uri() + "#png"],
+         f"--screenshot={png_path.resolve()}", f"--window-size=1440,{height + 16}",
+         uri],
         check=True, capture_output=True, timeout=120)
     return True
 
@@ -1513,7 +1540,7 @@ def main() -> None:
     print(f"HTML -> {out_html}")
 
     if args.png and render_png(out_html, out_png,
-                               height=3350 if args.public else 4300):
+                               fallback_height=3800 if args.public else 5400):
         print(f"PNG  -> {out_png}")
     if args.open:
         webbrowser.open(out_html.resolve().as_uri())
