@@ -1218,12 +1218,6 @@ table.sheet{width:100%;border-collapse:collapse}
 .lrow.open .rchev{color:#ffb454}
 .lrow .lname{color:#5c6a78;font-size:11.5px;letter-spacing:.05em}
 .lrow .lpx{margin-left:auto;font-size:12.5px;color:#8b9aa8}
-.lrow.gamma .lname{color:#8b9aa8}
-.lrow.cwall .lname,.lrow.pwall .lname,.lrow.flip .lname{color:#c9d4de;font-weight:600}
-.lrow.cwall .lname::after{content:" ▲";color:#3ddc84;font-size:9px}
-.lrow.pwall .lname::after{content:" ▼";color:#ff5f56;font-size:9px}
-.lrow.flip .lname::after{content:" ◆";color:#ffb454;font-size:9px}
-.lrow.flip .lpx,.lrow.cwall .lpx,.lrow.pwall .lpx{color:#c9d4de}
 .lrow.amd .lname{color:#4dd0e1;font-weight:600}
 .lrow.amd .lpx{color:#4dd0e1}
 .lrow.clu .lname{color:#c792ea;font-weight:600}
@@ -1306,6 +1300,18 @@ body.expand-all .wrow.wmore{display:flex}
 body.expand-all #wire-more{display:none}
 body.expand-all .lnote{display:none}
 body.expand-all .tickrun{animation:none}
+"""
+
+# Styling for the GEX ladder rows — appended to the PERSONAL edition only,
+# so the public page carries zero licensed-feed vocabulary (the publish
+# redaction gate scans raw HTML including CSS).
+CSS_GEX = """
+.lrow.gamma .lname{color:#8b9aa8}
+.lrow.cwall .lname,.lrow.pwall .lname,.lrow.flip .lname{color:#c9d4de;font-weight:600}
+.lrow.cwall .lname::after{content:" ▲";color:#3ddc84;font-size:9px}
+.lrow.pwall .lname::after{content:" ▼";color:#ff5f56;font-size:9px}
+.lrow.flip .lname::after{content:" ◆";color:#ffb454;font-size:9px}
+.lrow.flip .lpx,.lrow.cwall .lpx,.lrow.pwall .lpx{color:#c9d4de}
 """
 
 JS = """
@@ -1438,7 +1444,7 @@ def build_page(brief, brief_age, gex, gex_age, summary, summary_age,
     return (
         "<!doctype html><html><head><meta charset='utf-8'>"
         "<title>NQ Situation Room</title>"
-        f"<style>{CSS}</style></head><body><div class='page'>"
+        f"<style>{CSS}{'' if public else CSS_GEX}</style></head><body><div class='page'>"
         + mast
         + build_ticker(brief)
         + build_hero(gex, summary)

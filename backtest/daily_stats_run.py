@@ -144,6 +144,16 @@ def main() -> None:
     if size_after > size_before:
         print("  dataset grew — commit backtest/session_stats_dataset.json")
 
+    # Phase 3: push the redacted public page to static hosting (no-op until
+    # publish_config.json has a remote). Never allowed to fail the pipeline.
+    try:
+        from tools import publish_public
+        publish_public.main()
+    except SystemExit as e:
+        print(f"  public publish blocked (exit {e.code}) — see gate output above")
+    except Exception as e:
+        print(f"  public publish failed: {type(e).__name__}: {e}")
+
 
 if __name__ == "__main__":
     main()
