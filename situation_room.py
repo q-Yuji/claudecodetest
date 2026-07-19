@@ -222,6 +222,14 @@ def build_hero(gex: dict | None, summary: dict | None) -> str:
         chips += (f'<span class="tag {"up" if bias == "BULLISH" else "dn"}">'
                   f'[ BIAS {esc(bias)} ]</span>')
 
+    # regime chip: trend/chop gate from daily closes (backtest.regime)
+    lr = summary.get("latest_regime")
+    if isinstance(lr, dict):
+        reg = str(lr.get("regime") or "")
+        cls = {"chop": "warn", "trend_up": "up", "trend_down": "dn"}.get(reg, "")
+        chips += (f'<span class="tag {cls}">[ REGIME {esc(reg.replace("_", " ").upper())}'
+                  f' · ER {float(lr.get("er") or 0):.2f} ]</span>')
+
     # flow-event chips: expiry/macro days are regime overrides — say so
     todays_events = _todays_events()
     for ev in todays_events:
@@ -575,19 +583,103 @@ def _matrix_pane(summary: dict) -> str:
             f"</tr></thead><tbody>{rows}</tbody></table>")
 
 
+_REGIME_LABELS = {"chop": "CONSOLIDATION (CHOP)", "mixed": "MIXED",
+                  "trend_up": "TRENDING UP", "trend_down": "TRENDING DOWN"}
+
+
+def _conditions_pane(summary: dict) -> str:
+    """Cross-market confirmation + regime + event days — the conditioning
+    layers that turn level stats into a playbook."""
+    cm = summary.get("cross_market") or {}
+    rows = ""
+    for k, label in (("confirmed", "ES SWEPT ITS LEVEL TOO (CONFIRMED)"),
+                     ("diverged", "NQ SWEPT ALONE (DIVERGED)")):
+        v = cm.get(k) or {}
+        if not v.get("touches"):
+            continue
+        rows += (f'<tr><td class="mono lvl">{label}</td>'
+                 f'<td class="mono">{int(v["touches"])}</td>'
+                 f'<td class="mono amber">{float(v["fakeout_pct"] or 0):.0f}%</td>'
+                 f'<td class="mono">≈{float(v["fakeout_median_overshoot_pts"] or 0):.0f} pts</td>'
+                 f'<td class="mono up">+{float(v["fakeout_median_mfe60_pts"] or 0):.0f} pts</td></tr>')
+    cross = ""
+    if rows:
+        untagged = int(cm.get("untagged_touches") or 0)
+        cross = (
+            '<div class="colhead mono">CROSS-MARKET CONFIRMATION — WAS ES BEHIND THE SWEEP?</div>'
+            '<table class="sheet"><thead><tr><th>AT NQ\'S FIRST TOUCH</th>'
+            '<th>TOUCHES</th><th>FAKEOUT</th><th>STOPS RUN</th><th>MED. BOUNCE 60M</th>'
+            f'</tr></thead><tbody>{rows}</tbody></table>'
+            + (f'<div class="lnote mono">a sweep without broad index participation '
+               f'is arbitrage-suspect — it reverses more and runs shallower'
+               f'{f" · {untagged} early touches untagged (predate ES data)" if untagged else ""}'
+               f'</div>'))
+
+    rrows = ""
+    for k, v in (summary.get("regime") or {}).items():
+        if not v.get("days"):
+            continue
+        low_n = ' <span class="lown">low sample</span>' if v["days"] < 5 else ""
+        rrows += (f'<tr><td class="mono lvl">{_REGIME_LABELS.get(k, k.upper())}{low_n}</td>'
+                  f'<td class="mono">{int(v["days"])}</td>'
+                  f'<td class="mono">{float(v["ny_up_pct"] or 0):.0f}%</td>'
+                  f'<td class="mono amber">{float(v["fakeout_pct"] or 0):.0f}%</td>'
+                  f'<td class="mono up">+{float(v["fakeout_median_mfe60_pts"] or 0):.0f} pts</td></tr>')
+    regime = ""
+    if rrows:
+        regime = (
+            '<div class="colhead mono" style="margin-top:22px">DAILY REGIME — WHICH PLAYBOOK APPLIES</div>'
+            '<table class="sheet"><thead><tr><th>TAPE (20-SESSION EFFICIENCY RATIO)</th>'
+            '<th>DAYS</th><th>NY UP</th><th>FAKEOUT</th><th>MED. BOUNCE 60M</th>'
+            f'</tr></thead><tbody>{rrows}</tbody></table>'
+            '<div class="lnote mono">fades pay biggest in consolidation — '
+            'trend days favor the break side</div>')
+
+    erows = ""
+    for k, v in (summary.get("event_days") or {}).items():
+        if not v.get("days"):
+            continue
+        label = {"none": "ORDINARY DAYS"}.get(k, _EVENT_LABELS.get(k, k).upper() + " DAYS")
+        low_n = ' <span class="lown">low sample</span>' if v["days"] < 5 else ""
+        med = float(v["median_ny_change_pts"] or 0)
+        erows += (f'<tr><td class="mono lvl">{label}{low_n}</td>'
+                  f'<td class="mono">{int(v["days"])}</td>'
+                  f'<td class="mono">{float(v["ny_up_pct"] or 0):.0f}%</td>'
+                  f'<td class="mono {chg_cls(med)}">{med:+.1f} pts</td>'
+                  f'<td class="mono">{float(v["median_ny_range_pts"] or 0):.0f} pts</td></tr>')
+    events = ""
+    if erows:
+        events = (
+            '<div class="colhead mono" style="margin-top:22px">FLOW-EVENT DAYS — WHEN STRUCTURE TAKES A BACK SEAT</div>'
+            '<table class="sheet"><thead><tr><th>DAY TYPE</th><th>DAYS</th>'
+            '<th>NY UP</th><th>MEDIAN NY MOVE</th><th>MEDIAN NY RANGE</th>'
+            f'</tr></thead><tbody>{erows}</tbody></table>')
+
+    return cross + regime + events
+
+
 def build_stats(summary: dict | None, age: float | None) -> str:
     if summary is None:
         return section("03", "The Numbers", "", anchor="stats", nofeed=True)
+    cond = _conditions_pane(summary)
+    cond_tab = cond_pane = ""
+    if cond:
+        cond_tab = ('<span class="tabsep">/</span>'
+                    '<button class="tab" data-pane="pane-cond">CONDITIONS</button>')
+        cond_pane = (f'<div class="tabpane" id="pane-cond">'
+                     f'<div class="pane-title mono">CONDITIONS</div>{cond}</div>')
     body = (
         '<div class="tabbar mono">'
         '<button class="tab active" data-pane="pane-ft">FIRST-TOUCH BOARD</button>'
         '<span class="tabsep">/</span>'
         '<button class="tab" data-pane="pane-lm">LONDON MATRIX</button>'
+        f'{cond_tab}'
         "</div>"
         f'<div class="tabpane active" id="pane-ft">'
         f'<div class="pane-title mono">FIRST-TOUCH BOARD</div>{_first_touch_pane(summary)}</div>'
         f'<div class="tabpane" id="pane-lm">'
-        f'<div class="pane-title mono">LONDON MATRIX</div>{_matrix_pane(summary)}</div>')
+        f'<div class="pane-title mono">LONDON MATRIX</div>{_matrix_pane(summary)}</div>'
+        f'{cond_pane}')
     return section("03", "The Numbers", body, age, anchor="stats")
 
 
@@ -1215,7 +1307,7 @@ def main() -> None:
     print(f"HTML -> {out_html}")
 
     if args.png and render_png(out_html, out_png,
-                               height=2760 if args.public else 3720):
+                               height=3350 if args.public else 4300):
         print(f"PNG  -> {out_png}")
     if args.open:
         webbrowser.open(out_html.resolve().as_uri())

@@ -51,6 +51,7 @@ from zoneinfo import ZoneInfo
 import pandas as pd
 import yfinance as yf
 
+from backtest.regime import classify_map, daily_closes
 from data.market_events import event_kinds
 
 warnings.filterwarnings("ignore")
@@ -280,6 +281,59 @@ def analyse_session(df: pd.DataFrame, day: date) -> dict | None:
     }
 
 
+# ── Cross-market + regime tagging ──────────────────────────────────────────────
+#
+# es_confirmed (per first-touch episode): at NQ's first breach of a session
+# level, had ES already breached its OWN corresponding level (±1 bar / 5min
+# tolerance)? False = NQ swept alone ("diverged") — an arbitrage-suspect sweep.
+# regime (per session): trend/chop read from backtest.regime, computed only
+# from daily closes BEFORE the session date (walk-forward safe).
+# Both are additive fields: sessions outside the ES 5m window simply stay
+# untagged rather than guessed.
+
+def _es_touch_times(es: pd.DataFrame) -> dict[str, dict[str, str]]:
+    """date-iso -> {level_name: 'HH:MM' of ES's first breach of its own level}."""
+    out = {}
+    for day in sorted({ts.date() for ts in es.index if ts.weekday() < 5}):
+        ny = _window(es, datetime.combine(day, NY_START, tzinfo=ET),
+                     datetime.combine(day, NY_END, tzinfo=ET))
+        if len(ny) < 30:
+            continue
+        hl = _session_hl(es, day)
+        if hl["asia_high"] is None or hl["london_high"] is None:
+            continue
+        times = {}
+        for name, side in (("asia_high", "high"), ("asia_low", "low"),
+                           ("london_high", "high"), ("london_low", "low")):
+            ep = _first_touch(ny, hl[name], side)
+            if ep:
+                times[name] = ep["time"]
+        out[day.isoformat()] = times
+    return out
+
+
+def _mins(hhmm: str) -> int:
+    h, m = hhmm.split(":")
+    return int(h) * 60 + int(m)
+
+
+def tag_session(rec: dict, es_times: dict, regimes: dict) -> bool:
+    """Add regime + es_confirmed tags in place. Returns True if changed."""
+    changed = False
+    if "regime" not in rec and rec["date"] in regimes:
+        rec["regime"] = regimes[rec["date"]]["regime"]
+        changed = True
+    et = es_times.get(rec["date"])
+    if et is not None:
+        for name, ep in rec["first_touch"].items():
+            if ep and "es_confirmed" not in ep:
+                es_t = et.get(name)
+                ep["es_confirmed"] = bool(es_t is not None
+                                          and _mins(es_t) <= _mins(ep["time"]) + 5)
+                changed = True
+    return changed
+
+
 # ── Aggregation ────────────────────────────────────────────────────────────────
 
 def _pct(n: int, d: int) -> float | None:
@@ -369,6 +423,36 @@ def aggregate(sessions: list[dict]) -> dict:
             "median_ny_range_pts": _median([_ny_range(s) for s in sub]),
         }
 
+    # 5) Cross-market confirmation — did ES sweep its own level too?
+    tagged = [e for e in all_eps if "es_confirmed" in e]
+    cross = {"untagged_touches": len(all_eps) - len(tagged)}
+    for label, want in (("confirmed", True), ("diverged", False)):
+        eps = [e for e in tagged if e["es_confirmed"] is want]
+        fakes = [e for e in eps if e["kind"] == "fakeout"]
+        cross[label] = {
+            "touches": len(eps),
+            "fakeout": len(fakes),
+            "fakeout_pct": _pct(len(fakes), len(eps)),
+            "fakeout_median_overshoot_pts": _median([e["overshoot_pts"] for e in fakes]),
+            "fakeout_median_mfe60_pts": _median([e["mfe_60"] for e in fakes]),
+        }
+
+    # 6) Regime-conditioned behavior (tests the "fades only pay in chop" gate)
+    regimes = {}
+    for reg in ("chop", "mixed", "trend_up", "trend_down"):
+        sub = [s for s in sessions if s.get("regime") == reg]
+        eps = [e for s in sub for e in s["first_touch"].values() if e]
+        fakes = [e for e in eps if e["kind"] == "fakeout"]
+        regimes[reg] = {
+            "days": len(sub),
+            "ny_up_pct": _pct(sum(1 for s in sub if s["ny_direction"] == "up"),
+                              len(sub)),
+            "median_ny_change_pts": _median([s["ny_change_pts"] for s in sub]),
+            "touches": len(eps),
+            "fakeout_pct": _pct(len(fakes), len(eps)),
+            "fakeout_median_mfe60_pts": _median([e["mfe_60"] for e in fakes]),
+        }
+
     dates = sorted(s["date"] for s in sessions)
     return {
         "generated": datetime.now(ET).isoformat(timespec="seconds"),
@@ -381,6 +465,8 @@ def aggregate(sessions: list[dict]) -> dict:
         "first_touch": levels,
         "time_buckets": buckets,
         "event_days": events,
+        "cross_market": cross,
+        "regime": regimes,
     }
 
 
@@ -433,11 +519,37 @@ def main():
             ds["sessions"][key] = rec
             added += 1
 
+    # cross-market + regime tags (new sessions AND untagged history; sessions
+    # older than the ES 5m window just keep their es_confirmed fields absent)
+    print("  Downloading ES 5m + NQ daily for cross-market/regime tags...")
+    try:
+        es_times = _es_touch_times(_dl_5m_yf("ES=F"))
+    except Exception as e:
+        print(f"    (ES unavailable: {type(e).__name__} — skipping ES tags)")
+        es_times = {}
+    current_regime = None
+    try:
+        closes = daily_closes()
+        regimes = classify_map(closes)
+        from backtest.regime import classify_closes
+        cur = classify_closes([float(v) for v in closes.values])
+        if cur:
+            current_regime = {**cur, "as_of": closes.index[-1].isoformat()}
+    except Exception as e:
+        print(f"    (daily data unavailable: {type(e).__name__} — skipping regime tags)")
+        regimes = {}
+    tagged = sum(tag_session(rec, es_times, regimes)
+                 for rec in ds["sessions"].values())
+    if tagged:
+        print(f"  Tagged {tagged} sessions with regime/ES-confirmation")
+
     DATASET_FILE.write_text(
         json.dumps(ds, indent=1, ensure_ascii=False), encoding="utf-8")
     print(f"  Dataset: {len(ds['sessions'])} sessions ({added} new) -> {DATASET_FILE.name}")
 
     summary = aggregate(list(ds["sessions"].values()))
+    if current_regime:
+        summary["latest_regime"] = current_regime
     RESULTS_DIR.mkdir(exist_ok=True)
     out = RESULTS_DIR / "session_stats_summary.json"
     out.write_text(json.dumps(summary, indent=2, ensure_ascii=False), encoding="utf-8")
@@ -469,6 +581,22 @@ def main():
             print(f"    {k:<14} n={v['days']:>3}  NY up {v['ny_up_pct']}%  "
                   f"median move {v['median_ny_change_pts']:+.1f}pts  "
                   f"median range {v['median_ny_range_pts']:.0f}pts")
+    print("\n  Cross-market confirmation (ES at the NQ sweep):")
+    cm = summary["cross_market"]
+    for k in ("confirmed", "diverged"):
+        v = cm[k]
+        if v["touches"]:
+            print(f"    {k:<10} touches={v['touches']:>3}  fakeout {v['fakeout_pct']}%  "
+                  f"overshoot {v['fakeout_median_overshoot_pts']}pts  "
+                  f"reversal 60m {v['fakeout_median_mfe60_pts']}pts")
+    if cm["untagged_touches"]:
+        print(f"    (untagged: {cm['untagged_touches']} touches predate the ES window)")
+    print("\n  Regime-conditioned (fade gate test):")
+    for k, v in summary["regime"].items():
+        if v["days"]:
+            print(f"    {k:<10} n={v['days']:>3}  NY up {v['ny_up_pct']}%  "
+                  f"touches={v['touches']:>3}  fakeout {v['fakeout_pct']}%  "
+                  f"reversal 60m {v['fakeout_median_mfe60_pts']}pts")
     print()
 
 
