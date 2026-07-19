@@ -98,21 +98,21 @@ Commit work to git regularly throughout a session — after each meaningful chan
 3. If any `my_trades.csv` rows for today still have blank qualitative columns (`setup_notes`, `gex_level_type`, etc.), prompt the user to fill them now while memory is fresh, and mirror the answers into both the CSV and the journal.
 4. Commit the journal entry (journal files are tracked — they're the durable record).
 
-## Tradeify account guardrail
+## Prop account guardrail (MFFU Builder)
 
-Current account: Tradeify **$50k sim-funded** (eval passed 2026-07-07; fresh funded account, state reset that day). Balances are tracked relative to the $50k base (base = $0).
+Current account: **MFFU (My Funded Futures) "Builder" $50k eval**, acct MFFUEVBLDR401004033, bought 2026-07-16 — one of TWO Builder accounts (the second is untracked so far). All prior Tradeify accounts are blown (funded + 4 evals, last one 2026-07-17); historical Tradeify rules live in git history. Balances tracked relative to the $50k base (base = $0). The guardrail module is still `data/tradeify_account.py` (name kept for import stability).
 
-**Eval pass requirements** (`data/tradeify_account.py`, phase = "eval"):
-- **Profit target:** +$3,000 total
-- **40% consistency rule:** no single day's profit may exceed 40% of total profit at the time of passing. Overshooting a day doesn't fail the eval — it just raises the required total to `best_day / 0.40`.
-- **No payouts during eval.** The payout rules below only apply after passing, in the funded phase.
+**Eval pass requirements** (phase = "eval"):
+- **Profit target:** +$3,000 total — **no consistency rule**; can be passed in a single day. (Balance $53,272.24 was hit 2026-07-17 — pass pending MFFU's EOD sync.)
+- **No payouts during eval.**
 
 **Drawdown rules:**
-- **Trailing EOD drawdown (both phases):** $2,000 below the highest EOD closing balance (floor never below −$2,000)
-- **Daily drawdown (funded phase ONLY):** $1,000 below today's starting balance. **Evals have no daily loss limit** — during the eval, the trailing EOD floor is the only drawdown constraint.
+- **Trailing EOD drawdown:** $2,000 (4%) below the highest EOD closing balance — confirmed off the MFFU stats dashboard. No daily/intraday loss limit.
 
-**Funded-phase payout rules (dormant until eval is passed):**
-- **Payout eligibility:** balance ≥ $2,100; payout available = min(balance − 2,100, 1,000); payouts can be requested **daily** (confirmed 2026-07-07)
+**Funded-phase rules (per user, 2026-07-17 — details to confirm once funded):**
+- 50% consistency rule; max payout $2,000 per request, requiring roughly a +$4,000 balance.
+
+**MFFU dashboard:** https://myfundedfutures.com/stats (open it in the debug Chrome; readable via CDP like the Tradovate web platform — see `scratchpad` capture scripts pattern: activate tab via `/json/activate/<id>`, then `Page.captureScreenshot`). The Tradovate web platform (trader.tradovate.com) in the debug Chrome is the fills ground truth when the TradingView broker panel is down or lying.
 
 **Trigger phrases** — "check my buffer" / "check my drawdown" / "how far from passing" or similar.
 

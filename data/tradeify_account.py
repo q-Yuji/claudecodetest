@@ -1,31 +1,31 @@
 """
-tradeify_account.py — Track Tradeify account drawdown and eval/funded rules.
+tradeify_account.py — prop-account drawdown / eval guardrail.
 
-Current phase: EVAL ($50k account; balances tracked relative to the $50k
-base, so base = $0).
+CURRENT ACCOUNT (since 2026-07-17): MFFU (My Funded Futures) "Builder"
+eval, acct MFFUEVBLDR401004033 — one of TWO Builder accounts bought
+2026-07-16 (this file tracks the one being traded; the second is
+untracked until the user asks for two-account support). All prior
+Tradeify accounts (funded + evals) are blown; the historical Tradeify
+rules live in git history.
 
-Eval pass rules (PHASE = "eval"):
-  - Profit target         : +$3,000 total
-  - 40% consistency rule  : no single day's profit may exceed 40% of total
-                            profit at the time of passing. Overshooting a day
-                            doesn't fail — it raises the required total to
-                            best_day / 0.40.
-  - No payouts during eval.
+Balances tracked relative to the account base, so base = $0.
 
-Drawdown rules:
-  - Trailing EOD drawdown : $2,000 below the highest EOD closing balance
-                            (floor never below -$2,000) — both phases
-  - Daily drawdown        : $1,000 below today's starting balance —
-                            FUNDED PHASE ONLY (evals have no daily loss limit)
-
-Funded-phase payout rules (dormant until PHASE = "funded"):
-  - Payout eligibility    : balance >= $2,100
-  - Payout available      : min(balance - 2100, 1000), if eligible
+MFFU Builder rules (per user, 2026-07-17):
+  - Eval profit target    : +$3,000 total — NO consistency rule during
+                            the eval; can pass in a single day.
+  - EOD drawdown          : $2,000 (4%) below the highest EOD closing
+                            balance — panel-confirmed off the MFFU stats
+                            dashboard 2026-07-17 (floor $48,060.96 vs EOD
+                            high $50,060.96). User quoted $2,100; the
+                            dashboard says $2,000 — dashboard wins. No
+                            intraday / daily loss limit reported.
+  - Funded phase          : 50% consistency; max payout $2,000 per
+                            request — a ~$4,000 balance is needed for the
+                            max payout. Exact eligibility formula
+                            unconfirmed; revisit when the eval passes.
 
 State (highest EOD balance, today's starting balance, per-day profit
-history for the consistency rule) persists in tradeify_state.json next to
-this file, since the floors and consistency math depend on history, not
-just the current balance.
+history) persists in tradeify_state.json next to this file.
 
 Usage:
     from data.tradeify_account import check_guardrail, roll_day, record_reading
@@ -40,14 +40,15 @@ from pathlib import Path
 
 STATE_FILE = Path(__file__).parent / "tradeify_state.json"
 
-PHASE = "eval"  # third $50k eval, bought 2026-07-16 (acct MFFUEVBLDR401004033)
+PHASE = "eval"  # MFFU Builder eval (acct MFFUEVBLDR401004033)
 
 TRAILING_DRAWDOWN = 2000.0
-DAILY_DRAWDOWN = 1000.0
+DAILY_DRAWDOWN = None  # no daily loss limit reported for MFFU Builder
 EVAL_TARGET = 3000.0
-CONSISTENCY_CAP = 0.40
-PAYOUT_BUFFER = 2100.0
-PAYOUT_CAP = 1000.0
+EVAL_CONSISTENCY_CAP = None  # Builder evals have no consistency rule
+FUNDED_CONSISTENCY_CAP = 0.50
+PAYOUT_CAP = 2000.0
+PAYOUT_MIN_BALANCE = 4000.0  # balance needed for the max $2k payout
 
 _DEFAULT_STATE = {
     "highest_eod_balance": 0.0,
@@ -112,27 +113,16 @@ def record_reading(current_balance: float, today: str | None = None) -> dict:
 
 
 def _eval_progress(current_balance: float, state: dict) -> dict:
-    """Distance to the eval profit target, with 40% consistency math."""
+    """Distance to the eval profit target. MFFU Builder evals have no
+    consistency rule, so the target is a flat +$3,000 — passable in one day."""
     day_start = state["day_start_balance"]
     today_pnl = round(current_balance - day_start, 2)
-    past_days = dict(state.get("daily_profits", {}))
-    best_day = max(list(past_days.values()) + [today_pnl, 0.0])
-
-    # The consistency rule can push the effective target above $3,000:
-    # every day (including the best one) must be <= 40% of the final total.
-    required_total = max(EVAL_TARGET, best_day / CONSISTENCY_CAP)
-
-    # Largest P&L today can reach while still allowing a clean pass at the
-    # $3,000 target: t <= CAP * (day_start + t)  =>  t <= CAP*day_start/(1-CAP)
-    today_clean_cap = round(CONSISTENCY_CAP * day_start / (1 - CONSISTENCY_CAP), 2)
 
     return {
         "today_pnl": today_pnl,
-        "best_day_profit": round(best_day, 2),
-        "profit_needed_to_pass": round(max(required_total - current_balance, 0.0), 2),
-        "required_total": round(required_total, 2),
-        "today_consistency_cap": today_clean_cap,
-        "passed": current_balance >= required_total,
+        "profit_needed_to_pass": round(max(EVAL_TARGET - current_balance, 0.0), 2),
+        "required_total": EVAL_TARGET,
+        "passed": current_balance >= EVAL_TARGET,
     }
 
 
@@ -149,8 +139,8 @@ def check_guardrail(current_balance: float) -> dict:
         "distance_to_trailing_floor": current_balance - trailing_floor,
     }
 
-    # Daily loss limit only exists on funded accounts; evals have none.
-    if PHASE == "funded":
+    # MFFU Builder has no intraday/daily loss limit in either phase.
+    if PHASE == "funded" and DAILY_DRAWDOWN is not None:
         daily_floor = state["day_start_balance"] - DAILY_DRAWDOWN
         result["daily_floor"] = daily_floor
         result["distance_to_daily_floor"] = current_balance - daily_floor
@@ -158,13 +148,13 @@ def check_guardrail(current_balance: float) -> dict:
     if PHASE == "eval":
         result["eval"] = _eval_progress(current_balance, state)
     else:
-        payout_eligible = current_balance >= PAYOUT_BUFFER
-        payout_available = (
-            min(current_balance - PAYOUT_BUFFER, PAYOUT_CAP)
-            if payout_eligible
-            else 0.0
+        # Funded payout math per user 2026-07-17: max $2k payout needs a
+        # ~$4k balance. Exact eligibility formula unconfirmed — treated as
+        # balance-above-(min_balance - cap), capped at PAYOUT_CAP.
+        payout_available = max(
+            0.0, min(current_balance - (PAYOUT_MIN_BALANCE - PAYOUT_CAP), PAYOUT_CAP)
         )
-        result["payout_eligible"] = payout_eligible
+        result["payout_eligible"] = payout_available > 0
         result["payout_available"] = round(payout_available, 2)
 
     return result
@@ -173,7 +163,7 @@ def check_guardrail(current_balance: float) -> dict:
 def print_guardrail(current_balance: float):
     r = check_guardrail(current_balance)
     print(f"\n{'-'*46}")
-    print(f"  Tradeify Buffer Check ({r['phase']})")
+    print(f"  MFFU Builder Buffer Check ({r['phase']})")
     print(f"{'-'*46}")
     print(f"  Current balance         : ${r['current_balance']:,.2f}")
     print(f"  Trailing EOD floor      : ${r['trailing_floor']:,.2f}  ({r['distance_to_trailing_floor']:+,.2f} cushion)")
@@ -184,12 +174,12 @@ def print_guardrail(current_balance: float):
         if e["passed"]:
             print(f"  Eval                    : PASSED (total ${r['current_balance']:,.2f} >= ${e['required_total']:,.2f})")
         else:
-            print(f"  Eval pass needs         : ${e['profit_needed_to_pass']:,.2f} more (target ${e['required_total']:,.2f})")
-            print(f"  Today so far            : ${e['today_pnl']:+,.2f} (clean-pass cap ${e['today_consistency_cap']:,.2f})")
+            print(f"  Eval pass needs         : ${e['profit_needed_to_pass']:,.2f} more (target ${e['required_total']:,.2f}, no consistency rule)")
+            print(f"  Today so far            : ${e['today_pnl']:+,.2f}")
     elif r["payout_eligible"]:
-        print(f"  Payout available        : ${r['payout_available']:,.2f}")
+        print(f"  Payout available        : ${r['payout_available']:,.2f} (max ${PAYOUT_CAP:,.0f} at ${PAYOUT_MIN_BALANCE:,.0f}+)")
     else:
-        print(f"  Payout eligible         : No (${PAYOUT_BUFFER - r['current_balance']:,.2f} short of ${PAYOUT_BUFFER:,.0f} buffer)")
+        print(f"  Payout eligible         : No")
     print(f"{'-'*46}\n")
 
 
