@@ -190,10 +190,31 @@ _PATTERN_TITLES = {"asia_high": "London sweeps Asia High.",
                    "both": "London sweeps both sides."}
 _LEVEL_LABELS = {"asia_high": "ASIA HIGH", "asia_low": "ASIA LOW",
                  "london_high": "LONDON HIGH", "london_low": "LONDON LOW"}
+_CLUSTER_LABELS = {"prior_day_high": "PRIOR DAY HIGH",
+                   "prior_day_low": "PRIOR DAY LOW",
+                   "prev_week_high": "PREV WEEK HIGH",
+                   "prev_week_low": "PREV WEEK LOW"}
+
+
+def _cluster_levels(summary: dict | None) -> tuple[dict[str, float], str]:
+    """Stop-cluster level prices for the coming session, from the dataset's
+    latest_levels. Returns ({key: price}, stale_note) — a weekend render
+    serving Monday is fresh; a for_session already in the past is not."""
+    ll = (summary or {}).get("latest_levels") or {}
+    lv = {k: float(ll[k]) for k in _CLUSTER_LABELS
+          if isinstance(ll.get(k), (int, float))}
+    note = ""
+    fs = str(ll.get("for_session") or "")
+    if lv and fs and fs < datetime.now(ET).date().isoformat():
+        note = f'PD/PW levels from {ll.get("as_of")} data'
+    return lv, note
 
 
 def _hero_numbers(summary: dict) -> tuple[int, int, int]:
-    ft = summary.get("first_touch") or {}
+    # session levels only — this is the number The Record grades, so it must
+    # match scoreboard.CLAIM_LEVELS; cluster levels report separately
+    ft = {k: v for k, v in (summary.get("first_touch") or {}).items()
+          if k in _LEVEL_LABELS}
     touched = sum(int(v.get("touched") or 0) for v in ft.values() if isinstance(v, dict))
     fake = sum(int(v.get("fakeout") or 0) for v in ft.values() if isinstance(v, dict))
     pct = round(100.0 * fake / touched) if touched else 0
@@ -257,11 +278,13 @@ def build_hero(gex: dict | None, summary: dict | None) -> str:
         f'levels<br>n={touched} touches · {esc(s.get("sessions", "?"))} sessions · '
         f'{esc(s.get("from", "?"))} → {esc(s.get("to", "?"))}</span></div>')
 
-    # playbook: a rate-sheet table
+    # playbook: a rate-sheet table (session levels + stop-cluster levels)
     ft = summary.get("first_touch") or {}
+    cluster, _ = _cluster_levels(summary)
+    prices = {**{k: amd.get(k) for k in _LEVEL_LABELS}, **cluster}
     rows = ""
-    for k, label in _LEVEL_LABELS.items():
-        price = amd.get(k)
+    for k, label in {**_LEVEL_LABELS, **_CLUSTER_LABELS}.items():
+        price = prices.get(k)
         st = ft.get(k) or {}
         if not isinstance(price, (int, float)) or not st:
             continue
@@ -408,6 +431,12 @@ def _ladder_html(gex: dict, summary: dict | None) -> str:
             rows.append((float(v), "amd",
                          dw.row('<div class="lrow amd"{D}>', inner,
                                 _stats_drawer(key, ft))))
+    cluster, _ = _cluster_levels(summary)
+    for key, p in cluster.items():
+        inner = (f'<span class="lname">{_CLUSTER_LABELS[key]}</span>'
+                 f'<span class="lpx mono">{fnum(p)}</span>')
+        rows.append((p, "clu", dw.row('<div class="lrow clu"{D}>', inner,
+                                      _stats_drawer(key, ft))))
     if last is not None:
         rows.append((last, "last",
                      f'<div class="lrow last"><span class="lname">LAST</span>'
@@ -442,8 +471,10 @@ def _public_ladder_html(gex: dict | None, brief: dict | None,
         else (gex or {}).get("current_price")
     dw = _Drawers()
     rows: list[tuple[float, str]] = []
-    for key, label in _LEVEL_LABELS.items():
-        v = amd.get(key)
+    cluster, _ = _cluster_levels(summary)
+    prices = {**{k: amd.get(k) for k in _LEVEL_LABELS}, **cluster}
+    for key, label in {**_LEVEL_LABELS, **_CLUSTER_LABELS}.items():
+        v = prices.get(key)
         if not isinstance(v, (int, float)):
             continue
         st = ft.get(key) or {}
@@ -452,9 +483,10 @@ def _public_ladder_html(gex: dict | None, brief: dict | None,
             odds = (f'<span class="lodds mono">{float(st.get("fakeout_pct") or 0):.0f}% fake '
                     f'· stops run ≈{float(st.get("fakeout_median_overshoot_pts") or 0):.0f} pts '
                     f'· +{float(st.get("fakeout_median_mfe60_pts") or 0):.0f}/60m</span>')
+        cls = "amd" if key in _LEVEL_LABELS else "clu"
         inner = (f'<span class="lname">{label}</span>{odds}'
                  f'<span class="lpx mono">{fnum(float(v))}</span>')
-        rows.append((float(v), dw.row('<div class="lrow amd roomy"{D}>', inner,
+        rows.append((float(v), dw.row(f'<div class="lrow {cls} roomy"{{D}}>', inner,
                                       _stats_drawer(key, ft))))
     pc = nq.get("prev_close")
     if isinstance(pc, (int, float)):
@@ -490,6 +522,7 @@ def _buckets_html(summary: dict | None) -> str:
 
 def build_structure(gex: dict | None, brief: dict | None, summary: dict | None,
                     age: float | None, public: bool) -> str:
+    stale = _cluster_levels(summary)[1]
     if public:
         title = "Session Liquidity Map · NQ"
         ladder = _public_ladder_html(gex, brief, summary)
@@ -503,6 +536,8 @@ def build_structure(gex: dict | None, brief: dict | None, summary: dict | None,
             return section("02", title, "", anchor="structure", nofeed=True)
         ladder = _ladder_html(gex, summary)
         note = "click a level for its playbook"
+    if stale:
+        note += f' · <span class="lown">{esc(stale)}</span>'
 
     clock = (
         f'<div class="clockbig mono" id="et-big">--:--:--</div>'
@@ -545,7 +580,7 @@ _BUCKET_TITLES = {"asia_high": "LONDON SWEEPS ASIA HIGH",
 
 def _first_touch_pane(summary: dict) -> str:
     rows = ""
-    for k, label in _LEVEL_LABELS.items():
+    for k, label in {**_LEVEL_LABELS, **_CLUSTER_LABELS}.items():
         st = (summary.get("first_touch") or {}).get(k)
         if not isinstance(st, dict):
             continue
@@ -1032,6 +1067,8 @@ table.sheet{width:100%;border-collapse:collapse}
 .lrow.flip .lpx,.lrow.cwall .lpx,.lrow.pwall .lpx{color:#c9d4de}
 .lrow.amd .lname{color:#4dd0e1;font-weight:600}
 .lrow.amd .lpx{color:#4dd0e1}
+.lrow.clu .lname{color:#c792ea;font-weight:600}
+.lrow.clu .lpx{color:#c792ea}
 .lrow.last{background:#ffb454;margin:3px 0;padding:5px 8px}
 .lrow.last .lname,.lrow.last .lpx{color:#0a0d10;font-weight:700}
 .lrow.last .lname{letter-spacing:.2em;font-size:10.5px}
