@@ -130,7 +130,11 @@ out-of-sample touches. Product consequence: the fakeout/overshoot stats
 (features 2–3, USP #2) are the validated sellable core; Today's Script
 directional lean stays published-but-flagged (NO EDGE YET) as anti-guru
 proof until vendor data (n≈250) settles whether any conditional slice
-earns an EDGE stamp. The evening auto-post upgrade is still open.
+earns an EDGE stamp. The evening auto-post upgrade shipped the same day:
+the 18:30 pipeline (backtest/daily_stats_run.py) now also renders
+results/scoreboard_card.png + scoreboard_caption.txt via
+backtest/scoreboard_card.py — the second daily content unit, ready to
+paste next to the morning stats card (posting stays manual).
 
 ### 6. Risk/sizing calculator — prop-aware wedge combo
 Generic prop-compliance is OCCUPIED (TradesViz etc.), but nobody fuses

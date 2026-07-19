@@ -4,9 +4,12 @@ daily_stats_run.py — One-shot SweepStats daily pipeline.
 Appends any new sessions to the dataset (via backtest.session_stats),
 regenerates the summary + shareable card (via backtest.stats_card), renders
 the card to results/stats_card.png with headless Chrome, and writes a
-ready-to-paste caption to results/stats_card_caption.txt. Idempotent: safe
-to run twice in a day. Never commits, never posts anywhere — it PREPARES
-the daily post; pasting the PNG + caption to X/Discord stays manual.
+ready-to-paste caption to results/stats_card_caption.txt. Since 2026-07-19
+it also prepares the SECOND daily content unit (roadmap feature 5): the
+evening scoreboard card (backtest.scoreboard_card) grading the day's call
+walk-forward, with its own PNG + caption. Idempotent: safe to run twice in
+a day. Never commits, never posts anywhere — it PREPARES the daily posts;
+pasting the PNGs + captions to X/Discord stays manual.
 
 Run:
   python -m backtest.daily_stats_run
@@ -23,13 +26,16 @@ import subprocess
 from datetime import date
 from pathlib import Path
 
-from backtest import session_stats, stats_card
+from backtest import scoreboard, scoreboard_card, session_stats, stats_card
 
 RESULTS_DIR = Path(__file__).parent.parent / "results"
 SUMMARY_FILE = RESULTS_DIR / "session_stats_summary.json"
 CARD_HTML = RESULTS_DIR / "stats_card.html"
 CARD_PNG = RESULTS_DIR / "stats_card.png"
 CAPTION_FILE = RESULTS_DIR / "stats_card_caption.txt"
+SB_CARD_HTML = RESULTS_DIR / "scoreboard_card.html"
+SB_CARD_PNG = RESULTS_DIR / "scoreboard_card.png"
+SB_CAPTION_FILE = RESULTS_DIR / "scoreboard_caption.txt"
 
 CHROME_CANDIDATES = [
     Path(os.environ.get("ProgramFiles", r"C:\Program Files"))
@@ -47,8 +53,9 @@ def _find_chrome() -> Path | None:
     return None
 
 
-def _render_png() -> bool:
-    """Render the card HTML to PNG with a fresh headless Chrome.
+def _render_png(html_path: Path = CARD_HTML, png_path: Path = CARD_PNG,
+                height: int = 1200) -> bool:
+    """Render a card HTML to PNG with a fresh headless Chrome.
 
     Never touches the port-9222 trading Chrome — this is a separate,
     short-lived headless process.
@@ -59,8 +66,8 @@ def _render_png() -> bool:
         return False
     subprocess.run(
         [str(chrome), "--headless=new", "--disable-gpu",
-         f"--screenshot={CARD_PNG.resolve()}", "--window-size=900,1200",
-         CARD_HTML.resolve().as_uri()],
+         f"--screenshot={png_path.resolve()}", f"--window-size=900,{height}",
+         html_path.resolve().as_uri()],
         check=True, capture_output=True, timeout=120)
     return True
 
@@ -80,16 +87,45 @@ def _write_caption(summary: dict) -> str:
     return caption
 
 
+def _write_scoreboard_caption(sb: dict) -> str | None:
+    lt = sb["latest"]
+    r = sb["record"]
+    fo = sb["fakeout_oos"]
+    if not lt:
+        return None
+    call_pct = (float(lt["said_up_pct"]) if lt["call"] == "up"
+                else 100 - float(lt["said_up_pct"]))
+    caption = (
+        f"NQ SweepStats — the call grades itself\n"
+        f"{lt['date']}: the data said NY {lt['call']} "
+        f"({call_pct:.0f}%) -> NY closed "
+        f"{float(lt['actual_change_pts']):+.0f} pts -> "
+        f"{'HIT' if lt['hit'] else 'MISS'}\n"
+        f"Running record: {r['hits']}/{r['calls']} "
+        f"({float(r['hit_pct']):.0f}%) — published either way\n"
+        f"The fakeout claim? Claimed ~{float(fo['avg_claim_pct'] or 0):.0f}%, "
+        f"running {float(fo['oos_pct'] or 0):.0f}% out-of-sample "
+        f"(n={fo['touches']} touches)\n")
+    SB_CAPTION_FILE.write_text(caption, encoding="utf-8")
+    return caption
+
+
 def main() -> None:
     size_before = len(session_stats.load_dataset()["sessions"])
 
-    session_stats.main()   # update dataset + write summary (idempotent)
-    stats_card.main()      # summary -> results/stats_card.html
+    session_stats.main()    # update dataset + write summary (idempotent)
+    stats_card.main()       # summary -> results/stats_card.html
+    scoreboard.main()       # dataset -> results/scoreboard.json (walk-forward grades)
+    scoreboard_card.main()  # grades  -> results/scoreboard_card.html
 
     size_after = len(session_stats.load_dataset()["sessions"])
     summary = json.loads(SUMMARY_FILE.read_text(encoding="utf-8"))
     caption = _write_caption(summary)
     png_ok = _render_png()
+
+    sb = scoreboard.compute_from_file()
+    sb_caption = _write_scoreboard_caption(sb)
+    sb_png_ok = SB_CARD_HTML.exists() and _render_png(SB_CARD_HTML, SB_CARD_PNG)
 
     print("=== SweepStats daily run ===")
     print(f"  dataset: {size_before} -> {size_after} sessions "
@@ -99,6 +135,12 @@ def main() -> None:
     if png_ok:
         print(f"  png     : {CARD_PNG}")
     print(f"  caption : {CAPTION_FILE}")
+    if sb_caption:
+        print(f"  graded  : {sb_caption.splitlines()[1]}")
+        print(f"  sb card : {SB_CARD_HTML}")
+        if sb_png_ok:
+            print(f"  sb png  : {SB_CARD_PNG}")
+        print(f"  sb capt : {SB_CAPTION_FILE}")
     if size_after > size_before:
         print("  dataset grew — commit backtest/session_stats_dataset.json")
 

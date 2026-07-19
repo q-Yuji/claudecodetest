@@ -180,8 +180,10 @@ def main() -> None:
             print(f"    {k:<10} {v['hits']}/{v['calls']} ({v['hit_pct']}%)")
     lt = sb["latest"]
     if lt:
+        call_pct = (lt["said_up_pct"] if lt["call"] == "up"
+                    else round(100 - lt["said_up_pct"], 1))
         print(f"  latest graded call : {lt['date']} {lt['pattern']} said "
-              f"{lt['call']} {lt['said_up_pct']}% -> NY {lt['actual_direction']} "
+              f"{lt['call']} {call_pct}% -> NY {lt['actual_direction']} "
               f"{lt['actual_change_pts']:+.1f} pts -> "
               f"{'HIT' if lt['hit'] else 'MISS'}")
 

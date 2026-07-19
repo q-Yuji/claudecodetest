@@ -574,8 +574,10 @@ def build_record(sb: dict | None) -> str:
     fo = sb["fakeout_oos"]
     lt = sb["latest"]
 
-    # latest graded call, stamped
+    # latest graded call, stamped (show the call-side probability, not up_pct)
     said = float(lt["said_up_pct"])
+    if lt["call"] != "up":
+        said = 100 - said
     act = float(lt["actual_change_pts"])
     stamp = ('<span class="stamp hit">HIT</span>' if lt["hit"]
              else '<span class="stamp miss">MISS</span>')
