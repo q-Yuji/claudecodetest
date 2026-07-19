@@ -17,3 +17,4 @@ backtest/vendor_data/*
 !backtest/vendor_data/README.md
 results/situation_room*.html
 results/situation_room*.png
+results/scoreboard.json

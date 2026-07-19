@@ -75,6 +75,19 @@ def load(name: str, ts_key: str) -> tuple[dict | None, float | None]:
     return data, age
 
 
+def load_scoreboard() -> dict | None:
+    """Walk-forward grades, computed live from the tracked dataset.
+
+    Stdlib-only import (see backtest/scoreboard.py) — no results/ JSON to
+    go stale: the scoreboard is always exactly as fresh as the dataset.
+    """
+    try:
+        from backtest.scoreboard import compute_from_file
+        return compute_from_file()
+    except Exception:
+        return None
+
+
 # ------------------------------------------------------------- formatting
 
 def esc(s: object) -> str:
@@ -545,11 +558,91 @@ def build_stats(summary: dict | None, age: float | None) -> str:
     return section("03", "The Numbers", body, age, anchor="stats")
 
 
+# ----------------------------------------------------------------- record
+
+def build_record(sb: dict | None) -> str:
+    """The Record — the call grades itself (roadmap feature 5, USP #1).
+
+    Walk-forward: every row was computed with only the data available
+    before that date, so every grade is out-of-sample. Verdicts are
+    published either way — including "no edge".
+    """
+    title = "The Record — every call graded, walk-forward"
+    if not sb or not (sb.get("record") or {}).get("calls"):
+        return section("04", title, "", anchor="record", nofeed=True)
+    r = sb["record"]
+    fo = sb["fakeout_oos"]
+    lt = sb["latest"]
+
+    # latest graded call, stamped
+    said = float(lt["said_up_pct"])
+    act = float(lt["actual_change_pts"])
+    stamp = ('<span class="stamp hit">HIT</span>' if lt["hit"]
+             else '<span class="stamp miss">MISS</span>')
+    left = (
+        f'<div class="kicker mono">LATEST GRADED CALL · {esc(lt["date"])} '
+        f'({esc(lt["weekday"]).upper()})</div>'
+        f'<h1 class="verdict vsm">{esc(_PATTERN_TITLES[lt["pattern"]])}</h1>'
+        f'<p class="dek">The script said NY closes '
+        f'<span class="{"up" if lt["call"] == "up" else "dn"}">{esc(lt["call"])} '
+        f'— {said:.0f}% of {int(lt["prior_days"])} prior days</span>. '
+        f'New York closed <span class="mono {chg_cls(act)}">{act:+.1f} pts</span>. '
+        f'{stamp}</p>'
+        f'<div class="l10 mono">'
+        + "".join(f'<b class="{"up" if h else "dn"}">{"&check;" if h else "&cross;"}</b>'
+                  for h in r["last10"])
+        + '<span class="l10cap">LAST 10 CALLS</span></div>')
+
+    right = (
+        f'<div class="bigstat"><span class="bignum">{float(r["hit_pct"]):.0f}<i>%</i></span>'
+        f'<span class="bigcap mono">DIRECTIONAL HIT RATE — {int(r["hits"])}/{int(r["calls"])} '
+        f'calls graded out-of-sample<br>{esc(r["first_call"])} → {esc(r["last_call"])} · '
+        f'{int(r["no_call_days"])} no-call days (low sample / coin flip)</span></div>')
+
+    # the claims sheet: what we test, how it's running, verdict attached
+    dir_pct = float(r["hit_pct"])
+    dir_verdict = ('<span class="stamp hit">EDGE</span>' if dir_pct >= 60 else
+                   '<span class="stamp miss">NO EDGE YET</span>' if dir_pct <= 55 else
+                   '<span class="stamp open">UNPROVEN</span>')
+    fo_pct = float(fo["oos_pct"] or 0)
+    fo_claim = float(fo["avg_claim_pct"] or 0)
+    fo_verdict = ('<span class="stamp hit">HOLDS</span>'
+                  if abs(fo_pct - fo_claim) <= 10 and fo_pct > 50
+                  else '<span class="stamp open">UNPROVEN</span>')
+    rows = (
+        f'<tr><td class="mono lvl">LONDON PATTERN CALLS NY DIRECTION</td>'
+        f'<td class="mono">{int(r["calls"])} calls</td>'
+        f'<td class="mono amber">{dir_pct:.0f}% hit</td>'
+        f'<td>{dir_verdict}</td></tr>'
+        f'<tr><td class="mono lvl">FIRST NY TOUCH IS USUALLY A FAKEOUT</td>'
+        f'<td class="mono">{int(fo["touches"])} touches</td>'
+        f'<td class="mono amber">claimed ~{fo_claim:.0f}% · ran {fo_pct:.0f}%</td>'
+        f'<td>{fo_verdict}</td></tr>')
+    for k, ttl in _BUCKET_TITLES.items():
+        v = (sb.get("by_pattern") or {}).get(k) or {}
+        if not v.get("calls"):
+            continue
+        rows += (f'<tr class="subrow"><td class="mono lvl sub">— {ttl}</td>'
+                 f'<td class="mono">{int(v["calls"])} calls</td>'
+                 f'<td class="mono">{float(v["hit_pct"]):.0f}% hit</td><td></td></tr>')
+    table = ('<table class="sheet"><thead><tr><th>CLAIM UNDER TEST</th>'
+             '<th>OUT-OF-SAMPLE</th><th>RESULT</th><th>VERDICT</th>'
+             f'</tr></thead><tbody>{rows}</tbody></table>')
+
+    note = ('<div class="lnote mono">walk-forward: every call is computed from '
+            'the sessions before its date only — nothing here is backfit. '
+            'negative verdicts are published, not buried.</div>')
+    body = f'<div class="herogrid rec"><div>{left}</div>{right}</div>{table}{note}'
+    return section("04", title, body,
+                   right=f'<span class="st">THROUGH {esc(r["last_call"])}</span>',
+                   anchor="record")
+
+
 # ------------------------------------------------------------------- wire
 
 def build_wire(brief: dict | None, age: float | None) -> str:
     if brief is None:
-        return section("04", "Wire", "", anchor="wire", nofeed=True)
+        return section("05", "Wire", "", anchor="wire", nofeed=True)
     news = (brief.get("news") or [])[:6]
     items = ""
     for i, n in enumerate(news):
@@ -575,7 +668,7 @@ def build_wire(brief: dict | None, age: float | None) -> str:
     if cal:
         cal = (f'<div class="colhead mono" style="margin-top:18px">TODAY\'S CALENDAR</div>'
                f'<div class="cal">{cal}</div>')
-    return section("04", "Wire", items + toggle + cal, age, anchor="wire")
+    return section("05", "Wire", items + toggle + cal, age, anchor="wire")
 
 
 # ------------------------------------------------------------------ page
@@ -664,6 +757,24 @@ h1.verdict{font-family:"Bahnschrift SemiBold Condensed","Bahnschrift","Arial Nar
 .bignum i{font-style:normal;font-size:64px}
 .bigcap{display:block;margin-top:12px;font-size:10px;line-height:1.7;
   letter-spacing:.1em;color:#5c6a78;text-transform:uppercase}
+/* ---------- record ---------- */
+h1.verdict.vsm{font-size:42px}
+.herogrid.rec{align-items:start;padding-bottom:18px}
+.herogrid.rec .bignum{font-size:110px}
+.stamp{display:inline-block;font:10.5px "Cascadia Mono","Consolas",monospace;
+  letter-spacing:.2em;padding:2px 10px 1px;border:1px solid;margin-left:6px;
+  vertical-align:2px}
+.stamp.hit{color:#3ddc84;border-color:rgba(61,220,132,.55)}
+.stamp.miss{color:#ff5f56;border-color:rgba(255,95,86,.55)}
+.stamp.open{color:#ffb454;border-color:rgba(255,180,84,.55)}
+.l10{display:flex;gap:5px;align-items:center;margin-top:18px}
+.l10 b{font-weight:normal;font-size:10px;width:19px;height:19px;display:flex;
+  align-items:center;justify-content:center;border:1px solid #1e2833}
+.l10 b.up{border-color:rgba(61,220,132,.4)}
+.l10 b.dn{border-color:rgba(255,95,86,.4)}
+.l10cap{font-size:9px;letter-spacing:.18em;color:#39485a;margin-left:10px}
+.sheet .lvl.sub{color:#5c6a78;padding-left:16px}
+tr.subrow td{font-size:12px;color:#8b9aa8}
 /* ---------- rate-sheet tables ---------- */
 table.sheet{width:100%;border-collapse:collapse}
 .sheet th{font:9.5px "Cascadia Mono","Consolas",monospace;letter-spacing:.16em;
@@ -856,7 +967,7 @@ if(location.hash==='#png')document.body.classList.add('expand-all');
 
 
 def build_page(brief, brief_age, gex, gex_age, summary, summary_age,
-               public: bool = False) -> str:
+               scoreboard: dict | None = None, public: bool = False) -> str:
     n_sessions = "—"
     if summary:
         n_sessions = str((summary.get("sample") or {}).get("sessions", "—"))
@@ -871,6 +982,7 @@ def build_page(brief, brief_age, gex, gex_age, summary, summary_age,
         '<a href="#script">SCRIPT</a><span class="nsep">/</span>'
         '<a href="#structure">STRUCTURE</a><span class="nsep">/</span>'
         '<a href="#stats">NUMBERS</a><span class="nsep">/</span>'
+        '<a href="#record">RECORD</a><span class="nsep">/</span>'
         '<a href="#wire">WIRE</a></nav>'
         f'<div class="mmeta"><span class="clk" id="mast-ny">--:-- NY</span> · '
         f'<span id="mast-utc">--:-- UTC</span><br>'
@@ -907,6 +1019,7 @@ def build_page(brief, brief_age, gex, gex_age, summary, summary_age,
         + build_hero(gex, summary)
         + build_structure(gex, brief, summary, gex_age, public)
         + build_stats(summary, summary_age)
+        + build_record(scoreboard)
         + build_wire(brief, brief_age)
         + footer
         + f"<script>{JS}</script></div></body></html>")
@@ -952,6 +1065,7 @@ def main() -> None:
     brief, brief_age = load("morning_brief.json", "generated")
     gex, gex_age = load("gex_levels.json", "timestamp")
     summary, summary_age = load("session_stats_summary.json", "generated")
+    scoreboard = load_scoreboard()
 
     suffix = "_public" if args.public else ""
     out_html = RESULTS / f"situation_room{suffix}.html"
@@ -959,12 +1073,12 @@ def main() -> None:
 
     out_html.write_text(
         build_page(brief, brief_age, gex, gex_age, summary, summary_age,
-                   public=args.public),
+                   scoreboard, public=args.public),
         encoding="utf-8")
     print(f"HTML -> {out_html}")
 
     if args.png and render_png(out_html, out_png,
-                               height=2210 if args.public else 2640):
+                               height=2760 if args.public else 3190):
         print(f"PNG  -> {out_png}")
     if args.open:
         webbrowser.open(out_html.resolve().as_uri())

@@ -117,6 +117,21 @@ it's running X%" is the credibility asset that separates this from guru
 anecdotes — and it's a SECOND daily auto-post (morning script + evening
 scoreboard = 2 content units/day from the same pipeline).
 
+**BUILT 2026-07-19** (`backtest/scoreboard.py` + The Record panel in both
+editions) as a walk-forward re-grader rather than a card archive: every
+call is reconstructed from only the sessions before its date, so the full
+out-of-sample record exists retroactively and is reproducible from the
+append-only dataset (whose git history is the tamper-proof archive).
+First grading, n=53: **the directional call has NO edge** — 41% hit over
+34 calls, and filtering to bigger buckets or stronger claimed edge makes
+it WORSE (n≥10: 37%; n≥10 & edge≥10pts: 43%) — while **the fakeout
+headline holds**: claimed ~60% at touch time, ran 64% over 128
+out-of-sample touches. Product consequence: the fakeout/overshoot stats
+(features 2–3, USP #2) are the validated sellable core; Today's Script
+directional lean stays published-but-flagged (NO EDGE YET) as anti-guru
+proof until vendor data (n≈250) settles whether any conditional slice
+earns an EDGE stamp. The evening auto-post upgrade is still open.
+
 ### 6. Risk/sizing calculator — prop-aware wedge combo
 Generic prop-compliance is OCCUPIED (TradesViz etc.), but nobody fuses
 setup statistics with prop math: median MAE120 on an Asia-High fakeout is
