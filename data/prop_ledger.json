@@ -1,0 +1,97 @@
+{
+  "_doc": "Prop-account economics ledger: what accounts cost vs what payouts came back. Hand-curated durable record (tracked in git, like journals). cost_usd null = fee not yet recorded — fill in real numbers, never estimates. Rendered by the Situation Room's Ledger panel (personal edition only).",
+  "updated": "2026-07-19",
+  "accounts": [
+    {
+      "id": "tradeify-eval-1",
+      "firm": "Tradeify",
+      "label": "$50k eval #1",
+      "account_no": null,
+      "type": "eval",
+      "cost_usd": null,
+      "bought": null,
+      "outcome": "passed",
+      "outcome_date": "2026-07-07",
+      "payouts": [],
+      "notes": "Active by 2026-06-24 (first journal); purchase date and fee not recorded. Passed 2026-07-07 (~$53,360 final), funded account issued same day."
+    },
+    {
+      "id": "tradeify-funded-1",
+      "firm": "Tradeify",
+      "label": "$50k funded (sim)",
+      "account_no": null,
+      "type": "funded",
+      "cost_usd": null,
+      "bought": "2026-07-07",
+      "outcome": "blown",
+      "outcome_date": null,
+      "payouts": [],
+      "notes": "Issued on eval #1 pass; +$3,244.24 day one. Blown between 2026-07-13 and 2026-07-16 (journals for that stretch outstanding — exact date and any activation fee unrecorded). No payout was ever taken."
+    },
+    {
+      "id": "tradeify-eval-2",
+      "firm": "Tradeify",
+      "label": "$50k eval #2 (1/2)",
+      "account_no": "TDFYSL50249764498",
+      "type": "eval",
+      "cost_usd": null,
+      "bought": "2026-07-14",
+      "outcome": "blown",
+      "outcome_date": "2026-07-16",
+      "payouts": [],
+      "notes": "Bought as a pair on CPI day; +~$1k day one; blown 2026-07-16."
+    },
+    {
+      "id": "tradeify-eval-3",
+      "firm": "Tradeify",
+      "label": "$50k eval #3 (2/2)",
+      "account_no": "TDFYSL50405790488",
+      "type": "eval",
+      "cost_usd": null,
+      "bought": "2026-07-14",
+      "outcome": "blown",
+      "outcome_date": "2026-07-16",
+      "payouts": [],
+      "notes": "Second of the CPI-day pair; +$906.20 on 07-15; blown 2026-07-16."
+    },
+    {
+      "id": "tradeify-eval-4",
+      "firm": "Tradeify",
+      "label": "$50k eval #4",
+      "account_no": null,
+      "type": "eval",
+      "cost_usd": null,
+      "bought": "2026-07-16",
+      "outcome": "blown",
+      "outcome_date": "2026-07-17",
+      "payouts": [],
+      "notes": "Instant re-buy the morning both CPI-day evals blew; itself blown next day — the last Tradeify account."
+    },
+    {
+      "id": "mffu-builder-1",
+      "firm": "MFFU",
+      "label": "$50k Builder #1",
+      "account_no": "MFFUEVBLDR401004033",
+      "type": "eval",
+      "cost_usd": null,
+      "bought": "2026-07-16",
+      "outcome": "passed",
+      "outcome_date": "2026-07-17",
+      "payouts": [],
+      "notes": "Balance $53,272.24 hit 2026-07-17 = target reached; pass pending MFFU EOD sync, funded phase to follow. No payouts possible until funded."
+    },
+    {
+      "id": "mffu-builder-2",
+      "firm": "MFFU",
+      "label": "$50k Builder #2",
+      "account_no": null,
+      "type": "eval",
+      "cost_usd": null,
+      "bought": "2026-07-16",
+      "outcome": "active",
+      "outcome_date": null,
+      "payouts": [],
+      "notes": "Second Builder of the pair; untracked so far (no trades logged against it)."
+    }
+  ]
+}

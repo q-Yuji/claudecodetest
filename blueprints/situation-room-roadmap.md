@@ -144,6 +144,15 @@ lot**. "Given your remaining drawdown, max size for this setup's
 historical adverse excursion" is a 20-line calculation with real teeth.
 Seed logic exists in `data/tradeify_account.py`.
 
+**Adjacent, BUILT 2026-07-19 (user request): The Ledger** — eval-spend vs
+payout tracking as a personal-edition Situation Room panel
+(`data/prop_ledger.json`), not a standalone product. Decision context:
+the standalone "prop ROI tracker" idea was assessed as real pain but
+spreadsheet-copyable with weak willingness-to-pay; its product future, if
+any, is a FREE shareable "prop ROI card" as distribution for SweepStats
+(the survival math above is what makes it non-generic). Personal
+dogfooding first; the panel never ships on the public page (account P&L).
+
 ### 7. Regime slicing (needs bigger n)
 Fakeout % conditioned on gamma regime / VIX band / day-of-week.
 `backtest/gex_history.json` is being banked daily for exactly this.

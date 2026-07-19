@@ -75,6 +75,16 @@ def load(name: str, ts_key: str) -> tuple[dict | None, float | None]:
     return data, age
 
 
+def load_ledger() -> dict | None:
+    """data/prop_ledger.json — hand-curated account economics (personal only)."""
+    try:
+        data = json.loads((ROOT / "data" / "prop_ledger.json")
+                          .read_text(encoding="utf-8"))
+        return data if isinstance(data, dict) and data.get("accounts") else None
+    except (OSError, ValueError):
+        return None
+
+
 def load_scoreboard() -> dict | None:
     """Walk-forward grades, computed live from the tracked dataset.
 
@@ -640,11 +650,105 @@ def build_record(sb: dict | None) -> str:
                    anchor="record")
 
 
+# ----------------------------------------------------------------- ledger
+
+_OUTCOME_CHIPS = {"blown": ("BLOWN", "miss"), "passed": ("PASSED", "hit"),
+                  "funded": ("FUNDED", "hit"), "active": ("ACTIVE", "open")}
+
+
+def _days_between(a: str | None, b: str | None) -> int | None:
+    try:
+        return (datetime.fromisoformat(b) - datetime.fromisoformat(a)).days
+    except (TypeError, ValueError):
+        return None
+
+
+def build_ledger(ledger: dict | None) -> str:
+    """The Ledger — what the accounts cost vs what payouts came back.
+
+    Personal edition ONLY: this is account P&L, which the public/product
+    page explicitly excludes. Fees are recorded facts — a missing
+    cost_usd renders as unknown, never as an estimate.
+    """
+    title = "The Ledger — account economics"
+    if not ledger:
+        return section("05", title, "", anchor="ledger", nofeed=True)
+    accts = [a for a in ledger["accounts"] if isinstance(a, dict)]
+
+    costs = [a["cost_usd"] for a in accts if isinstance(a.get("cost_usd"), (int, float))]
+    unknown_fees = len(accts) - len(costs)
+    spent = sum(costs)
+    payouts = [p for a in accts for p in (a.get("payouts") or [])
+               if isinstance(p, dict) and isinstance(p.get("amount_usd"), (int, float))]
+    paid_out = sum(p["amount_usd"] for p in payouts)
+
+    evals = [a for a in accts if a.get("type") == "eval"]
+    resolved = [a for a in evals if a.get("outcome") in ("passed", "blown")]
+    passed = sum(1 for a in resolved if a["outcome"] == "passed")
+    lifespans = [d for a in accts if a.get("outcome") == "blown"
+                 if (d := _days_between(a.get("bought"), a.get("outcome_date"))) is not None]
+    med_life = sorted(lifespans)[len(lifespans) // 2] if lifespans else None
+
+    if unknown_fees:
+        spent_txt = (f"${spent:,.0f} recorded · {unknown_fees} fee"
+                     f"{'s' if unknown_fees > 1 else ''} unrecorded"
+                     if costs else f"unknown — {unknown_fees} fees unrecorded")
+        net_txt = "net unknowable until fees are filled in"
+    else:
+        spent_txt = f"${spent:,.0f} across {len(accts)} accounts"
+        net = paid_out - spent
+        net_txt = f'net {"+" if net >= 0 else "−"}${abs(net):,.0f}'
+
+    left = (
+        f'<div class="kicker mono">SINCE THE FIRST TRACKED ACCOUNT · '
+        f'{len(accts)} ACCOUNTS ACROSS '
+        f'{len({a.get("firm") for a in accts})} FIRMS</div>'
+        f'<h1 class="verdict vsm">{len(accts)} accounts. '
+        f'{len(payouts) or "Zero"} payout{"" if len(payouts) == 1 else "s"}.</h1>'
+        f'<p class="dek">Evals passed <span class="mono">{passed}/{len(resolved)}</span> '
+        f'of those resolved'
+        + (f' · blown accounts lasted a median <span class="mono">{med_life} '
+           f'day{"s" if med_life != 1 else ""}</span>' if med_life is not None else "")
+        + f'. Spent: <span class="mono amber">{esc(spent_txt)}</span> · '
+        f'{esc(net_txt)}.</p>')
+    right = (
+        f'<div class="bigstat"><span class="bignum">${paid_out:,.0f}</span>'
+        f'<span class="bigcap mono">TOTAL PAYOUTS RECEIVED — the only number '
+        f'that ever comes back<br>fees go out on every account; this is the '
+        f'return side of the ledger</span></div>')
+
+    rows = ""
+    for a in accts:
+        chip_txt, chip_cls = _OUTCOME_CHIPS.get(str(a.get("outcome")), ("?", "open"))
+        cost = a.get("cost_usd")
+        life = _days_between(a.get("bought"), a.get("outcome_date"))
+        a_pay = sum(p.get("amount_usd") or 0 for p in (a.get("payouts") or []))
+        rows += (
+            f'<tr><td class="mono lvl">{esc(a.get("firm") or "?").upper()} '
+            f'{esc(a.get("label") or "")}</td>'
+            f'<td class="mono">{esc(a.get("bought") or "—")}</td>'
+            f'<td class="mono amber">{f"${cost:,.0f}" if isinstance(cost, (int, float)) else "—"}</td>'
+            f'<td class="mono">{f"{life}d" if life is not None else "—"}</td>'
+            f'<td><span class="stamp {chip_cls}">{chip_txt}</span></td>'
+            f'<td class="mono">{f"${a_pay:,.0f}" if a_pay else "—"}</td></tr>')
+    table = ('<table class="sheet"><thead><tr><th>ACCOUNT</th><th>BOUGHT</th>'
+             '<th>COST</th><th>LIFESPAN</th><th>OUTCOME</th><th>PAYOUTS</th>'
+             f'</tr></thead><tbody>{rows}</tbody></table>')
+
+    note = ('<div class="lnote mono">fees are recorded facts, never estimates — '
+            'fill cost_usd in data/prop_ledger.json to complete the net. '
+            'personal edition only; never rendered on the public page.</div>')
+    body = f'<div class="herogrid rec"><div>{left}</div>{right}</div>{table}{note}'
+    return section("05", title, body,
+                   right=f'<span class="st">UPDATED {esc(ledger.get("updated") or "?")}</span>',
+                   anchor="ledger")
+
+
 # ------------------------------------------------------------------- wire
 
-def build_wire(brief: dict | None, age: float | None) -> str:
+def build_wire(brief: dict | None, age: float | None, num: str = "05") -> str:
     if brief is None:
-        return section("05", "Wire", "", anchor="wire", nofeed=True)
+        return section(num, "Wire", "", anchor="wire", nofeed=True)
     news = (brief.get("news") or [])[:6]
     items = ""
     for i, n in enumerate(news):
@@ -670,7 +774,7 @@ def build_wire(brief: dict | None, age: float | None) -> str:
     if cal:
         cal = (f'<div class="colhead mono" style="margin-top:18px">TODAY\'S CALENDAR</div>'
                f'<div class="cal">{cal}</div>')
-    return section("05", "Wire", items + toggle + cal, age, anchor="wire")
+    return section(num, "Wire", items + toggle + cal, age, anchor="wire")
 
 
 # ------------------------------------------------------------------ page
@@ -969,7 +1073,8 @@ if(location.hash==='#png')document.body.classList.add('expand-all');
 
 
 def build_page(brief, brief_age, gex, gex_age, summary, summary_age,
-               scoreboard: dict | None = None, public: bool = False) -> str:
+               scoreboard: dict | None = None, ledger: dict | None = None,
+               public: bool = False) -> str:
     n_sessions = "—"
     if summary:
         n_sessions = str((summary.get("sample") or {}).get("sessions", "—"))
@@ -985,7 +1090,8 @@ def build_page(brief, brief_age, gex, gex_age, summary, summary_age,
         '<a href="#structure">STRUCTURE</a><span class="nsep">/</span>'
         '<a href="#stats">NUMBERS</a><span class="nsep">/</span>'
         '<a href="#record">RECORD</a><span class="nsep">/</span>'
-        '<a href="#wire">WIRE</a></nav>'
+        + ('' if public else '<a href="#ledger">LEDGER</a><span class="nsep">/</span>')
+        + '<a href="#wire">WIRE</a></nav>'
         f'<div class="mmeta"><span class="clk" id="mast-ny">--:-- NY</span> · '
         f'<span id="mast-utc">--:-- UTC</span><br>'
         f'{edition}<span class="n">n={esc(n_sessions)} SESSIONS</span> · BUILD {esc(built)}</div>'
@@ -1022,7 +1128,8 @@ def build_page(brief, brief_age, gex, gex_age, summary, summary_age,
         + build_structure(gex, brief, summary, gex_age, public)
         + build_stats(summary, summary_age)
         + build_record(scoreboard)
-        + build_wire(brief, brief_age)
+        + ("" if public else build_ledger(ledger))
+        + build_wire(brief, brief_age, num="05" if public else "06")
         + footer
         + f"<script>{JS}</script></div></body></html>")
 
@@ -1068,6 +1175,7 @@ def main() -> None:
     gex, gex_age = load("gex_levels.json", "timestamp")
     summary, summary_age = load("session_stats_summary.json", "generated")
     scoreboard = load_scoreboard()
+    ledger = None if args.public else load_ledger()
 
     suffix = "_public" if args.public else ""
     out_html = RESULTS / f"situation_room{suffix}.html"
@@ -1075,12 +1183,12 @@ def main() -> None:
 
     out_html.write_text(
         build_page(brief, brief_age, gex, gex_age, summary, summary_age,
-                   scoreboard, public=args.public),
+                   scoreboard, ledger, public=args.public),
         encoding="utf-8")
     print(f"HTML -> {out_html}")
 
     if args.png and render_png(out_html, out_png,
-                               height=2760 if args.public else 3190):
+                               height=2760 if args.public else 3720):
         print(f"PNG  -> {out_png}")
     if args.open:
         webbrowser.open(out_html.resolve().as_uri())
