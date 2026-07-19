@@ -428,6 +428,17 @@ def _median(vals: list[float]) -> float | None:
     return round(s[m] if len(s) % 2 else (s[m - 1] + s[m]) / 2, 2)
 
 
+def _pctile(vals: list[float], q: float) -> float | None:
+    """Linear-interpolated percentile (q in 0..1) — matches numpy default."""
+    if not vals:
+        return None
+    s = sorted(vals)
+    pos = (len(s) - 1) * q
+    lo = int(pos)
+    hi = min(lo + 1, len(s) - 1)
+    return round(s[lo] + (s[hi] - s[lo]) * (pos - lo), 2)
+
+
 def aggregate(sessions: list[dict]) -> dict:
     sessions = [s for s in sessions if s.get("v") == DATASET_VERSION]
 
@@ -462,6 +473,10 @@ def aggregate(sessions: list[dict]) -> dict:
             "fakeout_median_mfe60_pts": _median([e["mfe_60"] for e in fakes]),
             "fakeout_median_mfe120_pts": _median([e["mfe_120"] for e in fakes]),
             "fakeout_median_mae120_pts": _median([e["mae_120"] for e in fakes]),
+            # tail adverse excursion — sizing math must survive the tail, not
+            # the median (half of all trades run past the median)
+            "fakeout_mae120_p75_pts": _pctile([e["mae_120"] for e in fakes], .75),
+            "fakeout_mae120_p90_pts": _pctile([e["mae_120"] for e in fakes], .90),
             "fakeout_mfe60_ge30pts_pct": _pct(
                 sum(1 for e in fakes if e["mfe_60"] >= 30), len(fakes)),
             "break_median_mfe60_pts": _median([e["mfe_60"] for e in breaks]),

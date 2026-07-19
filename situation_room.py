@@ -85,6 +85,42 @@ def load_ledger() -> dict | None:
         return None
 
 
+def load_guardrail() -> dict | None:
+    """Read-only projection of the prop-account guardrail state.
+
+    Reads data/tradeify_state.json directly instead of calling
+    check_guardrail(): that path writes the state file, and a page render
+    must never mutate guardrail state. Projects the trailing floor the way
+    roll_day() will: a last-seen balance from a prior date is a pending EOD
+    close, so it counts toward the EOD high.
+    """
+    try:
+        from data.tradeify_account import (EVAL_TARGET, PHASE,
+                                           TRAILING_DRAWDOWN)
+        state = json.loads((ROOT / "data" / "tradeify_state.json")
+                           .read_text(encoding="utf-8"))
+        last = float(state["last_seen_balance"])
+        high = float(state["highest_eod_balance"])
+        as_of = str(state.get("last_seen_date") or "")
+    except (ImportError, OSError, ValueError, KeyError, TypeError):
+        return None
+    today = datetime.now(ET).date().isoformat()
+    if as_of and as_of != today:
+        high = max(high, last)  # pending EOD bank
+    floor = high - TRAILING_DRAWDOWN
+    return {
+        "phase": PHASE,
+        "balance": last,
+        "as_of": as_of,
+        "stale": bool(as_of) and as_of != today,
+        "floor": floor,
+        "buffer": last - floor,
+        "drawdown": TRAILING_DRAWDOWN,
+        "eval_target": EVAL_TARGET,
+        "eval_passed": PHASE == "eval" and last >= EVAL_TARGET,
+    }
+
+
 def load_scoreboard() -> dict | None:
     """Walk-forward grades, computed live from the tracked dataset.
 
@@ -803,6 +839,95 @@ def build_record(sb: dict | None) -> str:
                    anchor="record")
 
 
+# ------------------------------------------------------------------ floor
+
+NQ_PT = 20.0   # $/pt, NQ e-mini
+MNQ_PT = 2.0   # $/pt, MNQ micro
+
+
+def build_floor(summary: dict | None, guard: dict | None) -> str:
+    """The Floor — survival sizing (roadmap feature 6, USP #3).
+
+    Fuses each setup's tail adverse excursion (p90 MAE — the move 1 in 10
+    episodes exceeds) with the live trailing-drawdown buffer: how many
+    contracts can this account actually afford on each fade? Sized to the
+    tail, not the median — half of all trades run past the median.
+    Personal edition ONLY (account state never renders on the public page).
+    """
+    title = "The Floor — survival sizing vs the trailing drawdown"
+    if guard is None or summary is None:
+        return section("05", title, "", anchor="floor", nofeed=True)
+
+    buf = float(guard["buffer"])
+    ft = summary.get("first_touch") or {}
+
+    rows, affordable, setups = "", 0, 0
+    for k, label in {**_LEVEL_LABELS, **_CLUSTER_LABELS}.items():
+        st = ft.get(k) or {}
+        p90 = st.get("fakeout_mae120_p90_pts")
+        if not isinstance(p90, (int, float)) or not p90:
+            continue
+        setups += 1
+        med = float(st.get("fakeout_median_mae120_pts") or 0)
+        cost90 = float(p90) * NQ_PT
+        max_nq = int(buf // cost90) if buf > 0 else 0
+        max_mnq = int(buf // (float(p90) * MNQ_PT)) if buf > 0 else 0
+        affordable += max_nq >= 1
+        nq_cell = (f'<td class="mono up">{max_nq}</td>' if max_nq
+                   else '<td class="mono dn">0</td>')
+        rows += (
+            f'<tr><td class="mono lvl">FADE AT {label}</td>'
+            f'<td class="mono">{med:.0f} pts</td>'
+            f'<td class="mono amber">{float(p90):.0f} pts</td>'
+            f'<td class="mono">${cost90:,.0f}</td>'
+            f'{nq_cell}'
+            f'<td class="mono">{max_mnq}</td></tr>')
+    if not rows:
+        return section("05", title, "", anchor="floor", nofeed=True)
+    table = ('<table class="sheet"><thead><tr><th>SETUP</th>'
+             '<th>ADVERSE MED.</th><th>ADVERSE P90</th><th>P90 COST / NQ</th>'
+             '<th>MAX NQ</th><th>MAX MNQ</th>'
+             f'</tr></thead><tbody>{rows}</tbody></table>')
+
+    if buf <= 0:
+        verdict = "Below the floor. Stand down."
+    elif affordable == 0:
+        verdict = "This buffer can't afford one NQ contract."
+    else:
+        verdict = f"{affordable} of {setups} setups afford NQ size."
+
+    chips = (f'<span class="tag warn">[ {esc(str(guard["phase"]).upper())} · '
+             f'TRAILING DD ${guard["drawdown"]:,.0f} ]</span>')
+    if guard["eval_passed"]:
+        chips += '<span class="tag up">[ EVAL TARGET HIT — PASS PENDING SYNC ]</span>'
+    if guard["stale"]:
+        chips += (f'<span class="tag warn">[ BALANCE AS OF {esc(guard["as_of"])} '
+                  f'— ROLL_DAY PENDING ]</span>')
+
+    left = (
+        f'<div class="kicker mono">MFFU BUILDER · BALANCE {guard["balance"]:+,.2f} '
+        f'VS BASE · FLOOR {guard["floor"]:+,.2f}</div>'
+        f'<h1 class="verdict vsm">{esc(verdict)}</h1>'
+        f'<p class="dek">Sizing uses each setup\'s <span class="mono">p90</span> '
+        f'adverse excursion — the move 1 in 10 of these episodes exceeds — '
+        f'never the median: half of all trades run past the median. A stop '
+        f'that "usually" holds is how 70% of evals die by drawdown.</p>'
+        f'<div class="tags mono">{chips}</div>')
+    right = (
+        f'<div class="bigstat"><span class="bignum">${buf:,.0f}</span>'
+        f'<span class="bigcap mono">REMAINING BUFFER above the trailing floor '
+        f'— the whole account, as far as the eval is concerned<br>'
+        f'NQ $20/pt · MNQ $2/pt</span></div>')
+
+    note = ('<div class="lnote mono">read-only over data/tradeify_state.json — '
+            'floors move when roll_day runs at session start. personal edition '
+            'only; never rendered on the public page.</div>')
+    body = f'<div class="herogrid rec"><div>{left}</div>{right}</div>{table}{note}'
+    return section("05", title, body,
+                   right=f'<span class="st">AS OF {esc(guard["as_of"] or "?")}</span>',
+                   anchor="floor")
+
+
 # ----------------------------------------------------------------- ledger
 
 _OUTCOME_CHIPS = {"blown": ("BLOWN", "miss"), "passed": ("PASSED", "hit"),
@@ -825,7 +950,7 @@ def build_ledger(ledger: dict | None) -> str:
     """
     title = "The Ledger — account economics"
     if not ledger:
-        return section("05", title, "", anchor="ledger", nofeed=True)
+        return section("06", title, "", anchor="ledger", nofeed=True)
     accts = [a for a in ledger["accounts"] if isinstance(a, dict)]
 
     costs = [a["cost_usd"] for a in accts if isinstance(a.get("cost_usd"), (int, float))]
@@ -892,7 +1017,7 @@ def build_ledger(ledger: dict | None) -> str:
             'fill cost_usd in data/prop_ledger.json to complete the net. '
             'personal edition only; never rendered on the public page.</div>')
     body = f'<div class="herogrid rec"><div>{left}</div>{right}</div>{table}{note}'
-    return section("05", title, body,
+    return section("06", title, body,
                    right=f'<span class="st">UPDATED {esc(ledger.get("updated") or "?")}</span>',
                    anchor="ledger")
 
@@ -1230,7 +1355,7 @@ if(location.hash==='#png')document.body.classList.add('expand-all');
 
 def build_page(brief, brief_age, gex, gex_age, summary, summary_age,
                scoreboard: dict | None = None, ledger: dict | None = None,
-               public: bool = False) -> str:
+               guard: dict | None = None, public: bool = False) -> str:
     n_sessions = "—"
     if summary:
         n_sessions = str((summary.get("sample") or {}).get("sessions", "—"))
@@ -1246,7 +1371,9 @@ def build_page(brief, brief_age, gex, gex_age, summary, summary_age,
         '<a href="#structure">STRUCTURE</a><span class="nsep">/</span>'
         '<a href="#stats">NUMBERS</a><span class="nsep">/</span>'
         '<a href="#record">RECORD</a><span class="nsep">/</span>'
-        + ('' if public else '<a href="#ledger">LEDGER</a><span class="nsep">/</span>')
+        + ('' if public else
+           '<a href="#floor">FLOOR</a><span class="nsep">/</span>'
+           '<a href="#ledger">LEDGER</a><span class="nsep">/</span>')
         + '<a href="#wire">WIRE</a></nav>'
         f'<div class="mmeta"><span class="clk" id="mast-ny">--:-- NY</span> · '
         f'<span id="mast-utc">--:-- UTC</span><br>'
@@ -1284,8 +1411,9 @@ def build_page(brief, brief_age, gex, gex_age, summary, summary_age,
         + build_structure(gex, brief, summary, gex_age, public)
         + build_stats(summary, summary_age)
         + build_record(scoreboard)
+        + ("" if public else build_floor(summary, guard))
         + ("" if public else build_ledger(ledger))
-        + build_wire(brief, brief_age, num="05" if public else "06")
+        + build_wire(brief, brief_age, num="05" if public else "07")
         + footer
         + f"<script>{JS}</script></div></body></html>")
 
@@ -1332,6 +1460,7 @@ def main() -> None:
     summary, summary_age = load("session_stats_summary.json", "generated")
     scoreboard = load_scoreboard()
     ledger = None if args.public else load_ledger()
+    guard = None if args.public else load_guardrail()
 
     suffix = "_public" if args.public else ""
     out_html = RESULTS / f"situation_room{suffix}.html"
@@ -1339,7 +1468,7 @@ def main() -> None:
 
     out_html.write_text(
         build_page(brief, brief_age, gex, gex_age, summary, summary_age,
-                   scoreboard, ledger, public=args.public),
+                   scoreboard, ledger, guard, public=args.public),
         encoding="utf-8")
     print(f"HTML -> {out_html}")
 
