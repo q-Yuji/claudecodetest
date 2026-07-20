@@ -1,5 +1,14 @@
 {
   "remote": null,
   "branch": "main",
-  "cname": null
+  "cname": null,
+  "site": {
+    "brand": "NQ Situation Room",
+    "by": "SweepStats",
+    "tagline": "No gurus. No narratives. Distributions.",
+    "price_label": "$29/mo",
+    "checkout_url": null,
+    "site_url": null,
+    "contact_email": "contact@example.com"
+  }
 }

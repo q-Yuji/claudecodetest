@@ -295,6 +295,21 @@ subscription first — zero auth/billing to build, and futures traders
 already live in Discord. Web accounts only after revenue proves demand.
 Track retention from subscriber #1.
 
+**UPDATE 2026-07-20 (user request — pre-build the go-live so flipping
+public is trivial): the web membership layer is BUILT and locally
+tested, not live.** User's chosen shape: Whop for payments, email
+magic-code login (his picks). `tools/build_site.py` assembles the full
+site (landing/sample/room/login/legal + Cloudflare Pages Functions:
+signed-cookie sessions, code login, Whop webhook grant/revoke with HMAC
+verification, admin comp API) into publish/; redaction gate on every
+page; wrangler-tested end-to-end (gate 302s, codes, webhook grant →
+login works → revoke → 403). This intentionally front-runs the "web
+accounts only after revenue" decision at the user's request — but
+NOTHING is public: remote null, no domain, no Whop product. GO-LIVE.md
+is the runbook (~1 evening of configuration). Open at go-live: brand
+name (gates domain + Whop product), Whop signature header + memberships
+endpoint verification against current docs, Resend domain setup.
+
 **Phase 5 — research options**
 Independent gamma computation (unlocks regime slices publicly), more
 instruments, API access for the dataset.
